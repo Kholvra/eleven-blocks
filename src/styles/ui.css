@@ -1,0 +1,29 @@
+.screen,
+.webgl-fallback {
+  min-height: 100vh;
+  padding: var(--space-page);
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 0.75rem;
+  background: radial-gradient(ellipse at top left, #31463a, #17231f 68%);
+}
+
+.screen[hidden] {
+  display: none;
+}
+
+.screen h1,
+.webgl-fallback h1 {
+  margin: 0;
+  font-size: clamp(2rem, 7vw, 4rem);
+  line-height: 1.05;
+}
+
+.screen p,
+.webgl-fallback p {
+  max-width: 42rem;
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
