@@ -1,6 +1,13 @@
 node_modules/
 dist/
 
+# Stok aset mentah (staging, di luar build) — jangan pernah masuk git.
+# Hapus baris ini kalau memang ingin ikut di-commit.
+_unduhan/
+
+# Hasil build single-file offline (artefak, bukan sumber)
+*.offline.html
+
 # Local video editing and capture work files
 *.mp4
 *.mov
