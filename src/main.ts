@@ -6,6 +6,7 @@ import { createGameEngine } from './game/engine';
 import { createGameMachine } from './game/machine';
 import { baruGame } from './game/state';
 import type { GameState, Phase } from './game/types';
+import type { GameAction } from './game/engine';
 import { createSaveRepository } from './save/save';
 import { loadSettings } from './save/settings';
 import { createScreenRouter, type ScreenRouter } from './ui/router';
@@ -54,12 +55,16 @@ if (!supportsWebGL2()) {
   };
   let engine = createGameEngine(initialState, saveState);
 
+  const machine = createGameMachine(initialState.fase);
   setupScene(app, () => engine.getState(), undefined, models);
-  const machine = createGameMachine();
   const completed = loadResult.status === 'valid' && loadResult.state.ronde === 10 &&
     ['ringkasan', 'laporan', 'tiket'].includes(loadResult.state.fase);
 
   router = createScreenRouter(app, machine, {
+    getState: () => engine.getState(),
+    dispatch(action: GameAction) {
+      return engine.dispatch(action);
+    },
     canContinue: loadResult.status === 'valid',
     continueLabel: completed
       ? 'Lihat hasil tersimpan'
