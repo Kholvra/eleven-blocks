@@ -9,6 +9,33 @@
     }
   },
   "ekonomi": {
-    "pendapatan_per_ronde": 10
+    "pendapatan_per_ronde": 10,
+    "kebijakan": [
+      { "kode": "K01", "biaya": 14 },
+      { "kode": "K02", "biaya": 12 },
+      { "kode": "K03", "biaya": 6 },
+      { "kode": "K04", "biaya": 22 },
+      { "kode": "K05", "biaya": 8 },
+      { "kode": "K06", "biaya": 16 },
+      { "kode": "K07", "biaya": 20 },
+      { "kode": "K08", "biaya": 10 },
+      { "kode": "K09", "biaya": 12 },
+      { "kode": "K10", "biaya": 14 },
+      { "kode": "K11", "biaya": 8 },
+      { "kode": "K12", "biaya": 24 },
+      { "kode": "K13", "biaya": 18 },
+      { "kode": "K14", "biaya": 26 },
+      { "kode": "K15", "biaya": 10 },
+      { "kode": "K16", "biaya": 18 },
+      { "kode": "K17", "biaya": 6 },
+      { "kode": "K18", "biaya": 24 },
+      { "kode": "K19", "biaya": 10 }
+    ],
+    "aksi": [
+      { "kode": "ACT01", "biaya": 3 },
+      { "kode": "ACT02", "biaya": 5 },
+      { "kode": "ACT03", "biaya": 2 },
+      { "kode": "ACT04", "biaya": 4 }
+    ]
   }
 }

@@ -1,9 +1,10 @@
 import balance from '../data/balance.json';
 import type { GameState } from './types';
+import { createDeck } from './deck';
 import { hashSeed } from './rng';
 
 export function baruGame(seed: string): GameState {
-  return {
+  const state: GameState = {
     versi: 1,
     seed,
     rngS: hashSeed(seed),
@@ -33,4 +34,6 @@ export function baruGame(seed: string): GameState {
     setelan: { audio: true },
     waktuSimpan: Date.now(),
   };
+  createDeck(state);
+  return state;
 }

@@ -1,5 +1,7 @@
 import balance from '../data/balance.json';
 import { allowedTransitions } from './machine';
+import { biayaAksi, biayaKartu, firstOpenBuildableCell, kodeKartu, statusAksi, statusKartu } from './cards';
+import { drawHand, exchangePolicy, finishHand } from './deck';
 import type { GameState, Phase, TahapRonde } from './types';
 
 const nextStage: Record<TahapRonde, TahapRonde | null> = {
@@ -13,7 +15,10 @@ const nextStage: Record<TahapRonde, TahapRonde | null> = {
 export type GameAction =
   | { type: 'TRANSISI_FASE'; fase: Phase }
   | { type: 'PROSES_TAHAP_RONDE' }
-  | { type: 'SELESAI_RONDE' };
+  | { type: 'SELESAI_RONDE' }
+  | { type: 'MAIN_KARTU'; kartuIdx: number; selIdx?: number }
+  | { type: 'MAIN_AKSI'; aksiId: string; kartuIdx?: number };
+
 
 export interface GameEngine {
   getState(): GameState;
@@ -26,12 +31,26 @@ export function createGameEngine(initialState: GameState): GameEngine {
   return {
     getState: () => state,
     dispatch(action) {
+      if (action.type === 'MAIN_KARTU') {
+        const nextState = playPolicy(state, action.kartuIdx, action.selIdx);
+        if (nextState === null) return false;
+        state = nextState;
+        return true;
+      }
+      if (action.type === 'MAIN_AKSI') {
+        const nextState = playAction(state, action.aksiId, action.kartuIdx);
+        if (nextState === null) return false;
+        state = nextState;
+        return true;
+      }
+
       if (action.type === 'PROSES_TAHAP_RONDE') {
         if (state.fase !== 'ronde') return false;
         const stage = nextStage[state.tahapRonde];
         if (stage === undefined || stage === null) return false;
         const nextState = structuredClone(state);
         nextState.tahapRonde = stage;
+        if (stage === 'tangan') drawHand(nextState);
         state = nextState;
         return true;
       }
@@ -40,6 +59,7 @@ export function createGameEngine(initialState: GameState): GameEngine {
         if (state.fase !== 'ronde' || state.tahapRonde !== 'transisi' || state.ronde < 1 || state.ronde > 10) return false;
 
         const nextState = structuredClone(state);
+        finishHand(nextState);
         nextState.tahapRonde = 'berita';
         nextState.kartuDimainkanRondeIni = null;
         if (nextState.ronde === 10) {
@@ -64,4 +84,35 @@ export function createGameEngine(initialState: GameState): GameEngine {
       return true;
     },
   };
+}
+
+function playPolicy(state: GameState, kartuIdx: number, requestedCell?: number): GameState | null {
+  if (state.fase !== 'ronde' || state.tahapRonde !== 'tangan' || !statusKartu(state, kartuIdx).available) return null;
+  const cell = requestedCell ?? firstOpenBuildableCell(state);
+  if (cell === null || !Number.isInteger(cell) || cell < 0 || cell >= state.papan.selBuildable || state.papan.ubin[cell] !== null) return null;
+  const cost = biayaKartu(kartuIdx);
+  const code = kodeKartu(kartuIdx);
+  if (cost === undefined || code === undefined) return null;
+
+  const nextState = structuredClone(state);
+  nextState.tangan.splice(nextState.tangan.indexOf(kartuIdx), 1);
+  nextState.anggaran -= cost;
+  nextState.kartuDimainkanRondeIni = code;
+  nextState.papan.ubin[cell] = kartuIdx;
+  nextState.milik.push(kartuIdx);
+  return nextState;
+}
+
+function playAction(state: GameState, aksiId: string, kartuIdx?: number): GameState | null {
+  if (state.fase !== 'ronde' || state.tahapRonde !== 'tangan') return null;
+  if (!statusAksi(state, aksiId, kartuIdx).available) return null;
+  const cost = biayaAksi(aksiId);
+  if (cost === undefined) return null;
+
+  const nextState = structuredClone(state);
+  nextState.anggaran -= cost;
+  nextState.aksiTerpakai.push(aksiId);
+  nextState.kartuDimainkanRondeIni = aksiId;
+  if (aksiId === 'ACT04' && kartuIdx !== undefined && !exchangePolicy(nextState, kartuIdx)) return null;
+  return nextState;
 }
