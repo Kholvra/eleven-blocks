@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hitungSkorAkhir } from '../src/game/report';
+import { composeLaporanKota, hitungSkorAkhir } from '../src/game/report';
 import { migrasikanSave } from '../src/save/migrasi';
 import { baruGame } from '../src/game/state';
 import type { GameState, KunciMeter } from '../src/game/types';
@@ -106,5 +106,106 @@ describe('hitungSkorAkhir', () => {
     mutate(state);
 
     expect(hitungSkorAkhir(state).status).toBe('tidak-valid');
+  });
+});
+describe('composeLaporanKota', () => {
+  it('always returns six ordered sections, including for an empty session', () => {
+    const state = finalState({ udara: 44, akses: 46, hijau: 39, warga: 51 });
+    const report = composeLaporanKota(state, hitungSkorAkhir(state));
+    expect(report.sections.map(({ id }) => id)).toEqual([
+      'ringkasan', 'keputusan', 'pihak-terdampak', 'mi', 'fakta', 'refleksi',
+    ]);
+    expect(report.sections[1]).toMatchObject({ tersedia: true, item: [] });
+    expect(report.sections[2]).toMatchObject({ tersedia: false, kondisi: [] });
+  });
+
+  it('ranks decisions by merged attributed meter effects, caps at three, and breaks ties by earlier round', () => {
+    const state = finalState({ udara: 44, akses: 46, hijau: 39, warga: 51 });
+    state.catatan = [
+      { ronde: 3, kartuIdx: 0, delta: { udara: 100 }, meter: state.meter, anggaran: 50 },
+      { ronde: 2, kartuIdx: 1, delta: { akses: 100 }, meter: state.meter, anggaran: 50 },
+      { ronde: 4, kartuIdx: 2, delta: { hijau: 100 }, meter: state.meter, anggaran: 50 },
+      { ronde: 1, kartuIdx: 3, delta: { warga: 100 }, meter: state.meter, anggaran: 50 },
+    ];
+    state.atribusiKeputusan = [
+      { ronde: 3, langsung: { udara: 5 }, tertunda: { udara: -3 } },
+      { ronde: 2, langsung: { akses: 3 }, tertunda: {} },
+      { ronde: 4, langsung: { hijau: 2 }, tertunda: {} },
+      { ronde: 1, langsung: { warga: 3 }, tertunda: {} },
+    ];
+    const report = composeLaporanKota(state, hitungSkorAkhir(state));
+    expect(report.sections[1].item.map(({ ronde }) => ronde)).toEqual([1, 2, 3]);
+    expect(report.sections[1].item.find(({ ronde }) => ronde === 2)?.delta).toEqual({ akses: 3 });
+    expect(report.sections[1].item.find(({ ronde }) => ronde === 3)?.delta).toEqual({ udara: 2 });
+    expect(report.sections[1].item.find(({ ronde }) => ronde === 4)).toBeUndefined();
+    expect(report.sections[1].item).toHaveLength(3);
+  });
+
+  it('includes conditions from every logged policy in log order, de-duplicated', () => {
+    const state = finalState({ udara: 44, akses: 46, hijau: 39, warga: 51 });
+    state.catatan = [
+      { ronde: 1, kartuIdx: 0, delta: {}, meter: state.meter, anggaran: 50 },
+      { ronde: 2, kartuIdx: 0, delta: {}, meter: state.meter, anggaran: 50 },
+      { ronde: 3, kartuIdx: 1, delta: {}, meter: state.meter, anggaran: 50 },
+      { ronde: 4, kartuIdx: 3, delta: {}, meter: state.meter, anggaran: 50 },
+    ];
+    state.atribusiKeputusan = state.catatan.map(({ ronde }) => ({ ronde, langsung: {}, tertunda: {} }));
+    const report = composeLaporanKota(state, hitungSkorAkhir(state));
+    expect(report.sections[1].item.map(({ ronde }) => ronde)).toEqual([1, 2, 3]);
+    expect(report.sections[2].kondisi).toEqual([
+      'Makan 1 lajur parkir; tanpa Dialog Warga, pemilik mobil protes (warga −1 sekali).',
+      'PKL bisa terusir kalau belum ada kios pengganti (warga −2 sekali; netral jika K15 sudah ada).',
+      'Biaya pengadaan besar; kalau K03 jalan tapi bus telat, warga marah (warga −1 sekali di event).',
+    ]);
+  });
+
+  it('does not rank policies without an attribution row and does not fall back to log deltas', () => {
+    const state = finalState({ udara: 44, akses: 46, hijau: 39, warga: 51 });
+    state.catatan = [
+      { ronde: 1, kartuIdx: 0, delta: { udara: 100 }, meter: state.meter, anggaran: 50 },
+    ];
+    state.atribusiKeputusan = [];
+    expect(composeLaporanKota(state, hitungSkorAkhir(state)).sections[1].item).toEqual([]);
+    delete state.atribusiKeputusan;
+    expect(composeLaporanKota(state, hitungSkorAkhir(state)).sections[1].item).toEqual([]);
+  });
+
+  it('uses initial and final game meters, keeps +5 explicitly unsimulated, and consumes the supplied score', () => {
+    const state = finalState({ udara: 44, akses: 46, hijau: 39, warga: 51 });
+    const report = composeLaporanKota(state, { status: 'siap', t: 0, c: 0, bintang: 3, mi: 17 });
+    expect(report.sections[0]).toMatchObject({
+      meterAwal: { udara: 42, akses: 45, hijau: 38, warga: 50 },
+      meterAkhir: state.meter,
+      cakrawala: [
+        { id: 'sekarang', disimulasikan: true },
+        { id: '+5', meter: null, disimulasikan: false },
+        { id: 'akhir', disimulasikan: true },
+      ],
+    });
+    expect(report.sections[3].mi).toBe(17);
+    expect(report.sections[3].rumus).toContain('Σ langsung − Σ tertunda');
+    expect(report.sections[3].disclaimer).toContain('bukan');
+  });
+
+  it('includes source provenance and filters facts missing required fields', () => {
+    const state = finalState({ udara: 44, akses: 46, hijau: 39, warga: 51 });
+    const fact = { id: 'x', nilai: '12', satuan: '%', penerbit: 'Penerbit', tahun: '2025', akses: '2026-10-17', url: 'https://example.org/data', link_pendek: 'example.org', arti: 'Meaning', konteks: 'Registry context' };
+    const report = composeLaporanKota(state, hitungSkorAkhir(state), [fact, { ...fact, url: '' }, { ...fact, arti: '' }]);
+    expect(report.sections[4].item).toEqual([{
+      id: 'x', nilai: '12', satuan: '%', penerbit: 'Penerbit', tahun: '2025',
+      akses: '2026-10-17', url: 'https://example.org/data', labelUrl: 'example.org',
+      arti: 'Meaning', konteks: 'Registry context',
+    }]);
+  });
+
+  it('summarizes signed direct versus delayed attribution and is pure and deterministic', () => {
+    const state = finalState({ udara: 44, akses: 46, hijau: 39, warga: 51 });
+    state.atribusiKeputusan = [{ ronde: 1, langsung: { udara: 4, warga: -1 }, tertunda: { hijau: 2 } }];
+    const before = structuredClone(state);
+    const score = { status: 'siap' as const, t: 0, c: 0, bintang: 3 as const, mi: 12 };
+    const first = composeLaporanKota(state, score);
+    expect(first.sections[3].arah).toContain('langsung bersih lebih besar');
+    expect(composeLaporanKota(state, score)).toEqual(first);
+    expect(state).toEqual(before);
   });
 });

@@ -152,7 +152,7 @@
   }
 
   .results-rating {
-    font-size: clamp(2.25rem, 12vw, 3.25rem);
+    font-size: clamp(1.5rem, 6vw, 2rem);
   }
 
   .results-supporting {
@@ -642,5 +642,32 @@
     width: auto;
     max-height: none;
     overflow: visible;
+  }
+}
+
+@media (max-width: 46rem) {
+  .screen[data-phase="laporan"] {
+    width: 100%;
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .results-content {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .report-meter-comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .report-horizons {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .report-horizon {
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
   }
 }
