@@ -120,7 +120,18 @@ export function createScreenRouter(
     }
 
     if (phase === 'tiket') {
-      screen.append(ticketScreen.intro, ticketScreen.form, ticketScreen.status, ticketScreen.result, ticketScreen.inbound, teacherReceiver.element);
+      const backToMenu = document.createElement('button');
+      backToMenu.className = 'menu-action ticket-back-menu';
+      backToMenu.type = 'button';
+      backToMenu.textContent = '🏠 Kembali ke Menu Utama';
+      backToMenu.addEventListener('click', () => {
+        if (location.hash.startsWith('#tiket=') || location.hash === '#guru' || location.hash === '#tiket') {
+          history.pushState(null, '', location.pathname + location.search);
+        }
+        machine.restore('menu');
+        render();
+      });
+      screen.append(ticketScreen.intro, ticketScreen.form, ticketScreen.status, ticketScreen.result, ticketScreen.inbound, teacherReceiver.element, backToMenu);
     }
 
     if (phase === 'tutorial') {
@@ -199,8 +210,9 @@ export function createScreenRouter(
   }
 
   function render(): void {
+    const currentMachine = machine.getPhase();
     const statePhase = options.getState().fase;
-    if (machine.getPhase() !== statePhase) machine.restore(statePhase);
+    if (currentMachine !== 'menu' && currentMachine !== statePhase) machine.restore(statePhase);
     const incoming = location.hash.startsWith('#tiket=');
     const receiving = incoming || location.hash === '#guru';
     const current = receiving ? 'tiket' : machine.getPhase();

@@ -71,10 +71,9 @@ if (!supportsWebGL2()) {
     router?.setStatus(saved ? '' : 'Simpanan perangkat tidak tersedia. Sesi ini tetap berjalan selama halaman terbuka.');
   };
   let engine = createGameEngine(initialState, saveState);
-  if (loadResult.status === 'valid' && initialState.fase === 'tutorial') {
-    engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ronde' });
-  }
-  machine = createGameMachine(engine.getState().fase);
+  const hasIncomingTicket = typeof window !== 'undefined' &&
+    (window.location.hash.startsWith('#tiket=') || window.location.hash === '#guru');
+  machine = createGameMachine(hasIncomingTicket ? 'tiket' : 'menu');
 
   setupScene(app, () => engine.getState(), (selIdx) => {
     window.dispatchEvent(new CustomEvent('board-tile-click', { detail: { selIdx } }));
@@ -110,7 +109,9 @@ if (!supportsWebGL2()) {
         return null;
       }
       engine = createGameEngine(result.state, saveState);
-      return engine.getState().fase;
+      machine!.restore(result.state.fase);
+      router?.render();
+      return result.state.fase;
     },
     onAudioChange(enabled) {
       engine.dispatch({ type: 'SETELAN_AUDIO', aktif: enabled });
