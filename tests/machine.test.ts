@@ -15,4 +15,19 @@ describe('game machine', () => {
     expect(machine.transition('laporan')).toBe(false);
     expect(machine.getPhase()).toBe('menu');
   });
+
+  it.each([
+    ['menu', 'event'],
+    ['tutorial', 'laporan'],
+    ['ronde', 'menu'],
+    ['event', 'ronde'],
+    ['ringkasan', 'event'],
+    ['laporan', 'menu'],
+    ['tiket', 'laporan'],
+  ] as const)('rejects %s -> %s without changing the phase', (initialPhase, nextPhase) => {
+    const machine = createGameMachine(initialPhase);
+
+    expect(machine.transition(nextPhase)).toBe(false);
+    expect(machine.getPhase()).toBe(initialPhase);
+  });
 });

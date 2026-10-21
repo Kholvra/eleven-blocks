@@ -1,13 +1,8 @@
-export type Phase =
-  | 'menu'
-  | 'tutorial'
-  | 'ronde'
-  | 'event'
-  | 'ringkasan'
-  | 'laporan'
-  | 'tiket';
+import type { Phase } from './types';
 
-const allowedTransitions: Record<Phase, readonly Phase[]> = {
+export type { Phase } from './types';
+
+export const allowedTransitions: Record<Phase, readonly Phase[]> = {
   menu: ['tutorial', 'ronde'],
   tutorial: ['ronde'],
   ronde: ['event', 'ringkasan'],

@@ -1,0 +1,14 @@
+{
+  "awal": {
+    "anggaran": 100,
+    "meter": {
+      "udara": 42,
+      "akses": 45,
+      "hijau": 38,
+      "warga": 50
+    }
+  },
+  "ekonomi": {
+    "pendapatan_per_ronde": 10
+  }
+}
