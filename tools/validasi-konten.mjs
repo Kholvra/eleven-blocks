@@ -309,6 +309,23 @@ function validateTargetPackage() {
   validateTargetInventory(loadJson('actions.json'), `${dataLabel}/actions.json`, 'aksi', 'ACT', 4, false);
 }
 
+const expectedEventSchedule = [
+  ['E04', 'naratif'],
+  ['E05', 'naratif'],
+  ['E01', 'interaktif'],
+  ['E06', 'naratif'],
+  ['E07', 'naratif'],
+  ['E02', 'interaktif'],
+  ['E08', 'naratif'],
+  ['E09', 'naratif'],
+  ['E03', 'interaktif'],
+  ['E10', 'naratif'],
+];
+const expectedChoiceContracts = {
+  E01: { ids: ['posko_siaga', 'gotong_royong', 'evakuasi'], costs: [8, 2, 5] },
+  E02: { ids: ['dialog', 'tertibkan', 'tunda'], costs: [4, 2, 0] },
+  E03: { ids: ['walking_bus', 'tambah_lajur', 'pasrah'], costs: [3, 10, 0] },
+};
 
 function validateEvents(data, file) {
   if (!isObject(data) || !Array.isArray(data.event)) {
@@ -325,22 +342,24 @@ function validateEvents(data, file) {
       fail(file, 'event', 'setiap record wajib berupa objek', idx);
       return;
     }
-    for (const field of ['id', 'judul', 'jenis', 'narasi', 'kenapa_penting', 'jika_semua_pilihan_tidak_terjangkau']) requiredString(event, field, file, idx);
-    if (ids.has(event.id)) fail(file, 'id', 'id event harus unik', idx);
+    const [expectedId, expectedType] = expectedEventSchedule[position] ?? [];
+    if (event.id !== expectedId) fail(file, 'id', `urutan wajib ${expectedId}; ditemukan ${String(event.id)}`, idx);
+    if (event.jenis !== expectedType) fail(file, 'jenis', `wajib ${expectedType} untuk ${expectedId}`, idx);
+    if (event.ronde !== position + 1) fail(file, 'ronde', `wajib ${position + 1} sesuai urutan event`, idx);
+    for (const field of ['id', 'judul', 'jenis', 'narasi', 'kenapa_penting']) requiredString(event, field, file, idx);
+    if (event.id === 'E01' || event.id === 'E02' || event.id === 'E03') {
+      requiredString(event, 'jika_semua_pilihan_tidak_terjangkau', file, idx);
+    }
+    if (event.id && ids.has(event.id)) fail(file, 'id', 'id event harus unik', idx);
     if (event.id) ids.add(event.id);
-    if (Number.isInteger(event.ronde)) {
-      if (rounds.has(event.ronde)) fail(file, 'ronde', 'ronde event harus unik', idx);
-      rounds.add(event.ronde);
-    }
+    if (Number.isInteger(event.ronde)) rounds.add(event.ronde);
     if (!['interaktif', 'naratif'].includes(event.jenis)) fail(file, 'jenis', 'hanya mendukung interaktif atau naratif', idx);
-    if (event.jenis === 'interaktif') {
-      if (![3, 6, 9].includes(event.ronde)) fail(file, 'ronde', 'event interaktif hanya diizinkan pada ronde 3, 6, atau 9', idx);
-      if (interactiveRounds.has(event.ronde)) fail(file, 'ronde', 'hanya satu event interaktif per ronde', idx);
-      if (Number.isInteger(event.ronde)) interactiveRounds.add(event.ronde);
-    }
     if (!Number.isInteger(event.ronde) || event.ronde < 1 || event.ronde > 10) fail(file, 'ronde', 'wajib berupa bilangan bulat 1..10', idx);
     if (!Array.isArray(event.pilihan)) fail(file, 'pilihan', 'wajib berupa array (gunakan [] untuk event naratif)', idx);
     else {
+      const contract = expectedChoiceContracts[event.id];
+      if (contract && event.pilihan.length !== 3) fail(file, 'pilihan', `event ${event.id} wajib tepat 3 pilihan`, idx);
+      if (!contract && event.pilihan.length !== 0) fail(file, 'pilihan', 'event naratif wajib memiliki pilihan kosong', idx);
       const choiceIds = new Set();
       event.pilihan.forEach((choice, position) => {
         const field = `pilihan[${position}]`;
@@ -351,7 +370,9 @@ function validateEvents(data, file) {
         for (const key of ['id', 'teks', 'penutup']) requiredString(choice, key, file, idx);
         if (choice.id && choiceIds.has(choice.id)) fail(file, `${field}.id`, 'id pilihan harus unik dalam event', idx);
         if (choice.id) choiceIds.add(choice.id);
-        if (typeof choice.biaya !== 'number' || !Number.isFinite(choice.biaya) || choice.biaya < 0) fail(file, `${field}.biaya`, 'wajib berupa angka non-negatif (poin abstrak)', idx);
+        if (contract && contract.ids[position] !== choice.id) fail(file, `${field}.id`, `wajib ${contract.ids[position]} untuk ${event.id}`, idx);
+        if (!Number.isInteger(choice.biaya) || choice.biaya < 0) fail(file, `${field}.biaya`, 'wajib berupa bilangan bulat non-negatif (poin abstrak)', idx);
+        if (contract && contract.costs[position] !== choice.biaya) fail(file, `${field}.biaya`, `wajib ${contract.costs[position]} untuk ${event.id}`, idx);
         validateEffect(choice.efek, file, `${field}.efek`, idx);
         if (choice.efek_tertunda !== undefined) validateDelayed(choice.efek_tertunda, file, `${field}.efek_tertunda`, idx);
       });

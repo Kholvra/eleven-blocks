@@ -1,0 +1,255 @@
+{
+  "event": [
+    {
+      "id": "E04",
+      "judul": "Bau TPS Menyengat",
+      "jenis": "naratif",
+      "ronde": 1,
+      "narasi": "TPS di sudut gang jadi bahan obrolan warga. Nia menawarkan kompos; tetangga menyahut, ‘Selama baunya kalah, kami ikut.’",
+      "kenapa_penting": "Cara warga memilah dan mengelola sampah ikut menentukan kondisi lingkungan sekitar TPS.",
+      "pilihan": [],
+      "sumber": [
+        {
+          "teks": "KLHK mencatat 25.540 bank sampah pada 2023.",
+          "url": "https://www.antaranews.com/berita/3586587/klhk-catat-25-ribu-bank-sampah-di-indonesia",
+          "akses": "2026-10-17"
+        }
+      ]
+    },
+    {
+      "id": "E05",
+      "judul": "Alarm Kabut dan PM2.5",
+      "jenis": "naratif",
+      "ronde": 2,
+      "narasi": "Aplikasi kualitas udara menampilkan peringatan. Sekolah memindahkan olahraga pagi ke dalam ruang.",
+      "kenapa_penting": "Informasi kualitas udara membantu warga mempertimbangkan kegiatan di luar ruang.",
+      "pilihan": [],
+      "sumber": [
+        {
+          "teks": "UN SDG 11 mencatat rata-rata PM2.5 tahunan kota sebesar 26,1 µg/m³ pada 2020–2023.",
+          "url": "https://sdgs.un.org/goals/goal11",
+          "akses": "2026-10-17"
+        }
+      ]
+    },
+    {
+      "id": "E01",
+      "judul": "Hujan Ekstrem Tiga Hari",
+      "jenis": "interaktif",
+      "ronde": 3,
+      "narasi": "Peringatan hujan deras tiga hari berturut-turut masuk ke layar. Grup WA RT penuh pesan tentang got yang mampet. Warung Bu Sari menyiapkan ember di depan los. ‘Daripada airnya jatuh ke dagangan, mending jatuh ke ember,’ katanya.",
+      "kenapa_penting": "Warga perlu mempertimbangkan kesiapsiagaan, kerja bersama, dan keselamatan saat hujan deras.",
+      "pilihan": [
+        {
+          "id": "posko_siaga",
+          "teks": "Siapkan posko siaga dan pompa",
+          "biaya": 8,
+          "efek": { "warga": 1 },
+          "penutup": "Kesejahteraan warga naik."
+        },
+        {
+          "id": "gotong_royong",
+          "teks": "Gotong royong membersihkan sungai",
+          "biaya": 2,
+          "efek": { "hijau": 1, "warga": 1 },
+          "penutup": "Ruang hijau dan kesejahteraan naik."
+        },
+        {
+          "id": "evakuasi",
+          "teks": "Prioritaskan evakuasi sekolah dan lansia",
+          "biaya": 5,
+          "efek": { "warga": 2, "akses": -1 },
+          "penutup": "Kesejahteraan naik, akses turun."
+        }
+      ],
+      "jika_semua_pilihan_tidak_terjangkau": "lewati_tanpa_efek",
+      "sumber": [
+        {
+          "teks": "BNPB mendokumentasikan dampak banjir Maret 2025 pada beberapa kota di Indonesia.",
+          "url": "https://bnpb.go.id/storage/app/media/Buletin%20Info%20Bencana/2025%20Buletin%20Info%20Bencana/2025%20Maret/Buletin%20Info%20Bencana%20Maret%202025.pdf",
+          "akses": "2026-10-17"
+        }
+      ]
+    },
+    {
+      "id": "E06",
+      "judul": "Banjir Kiriman dari Hulu",
+      "jenis": "naratif",
+      "ronde": 4,
+      "narasi": "Hujan sudah berhenti di Cempaka Hilir, tetapi air masih datang dari hulu. Warga meminta koordinasi lintas wilayah.",
+      "kenapa_penting": "Pengelolaan risiko bencana dapat melibatkan layanan dan wilayah yang saling terhubung.",
+      "pilihan": [],
+      "sumber": [
+        {
+          "teks": "UN SDG 11 merangkum dampak bencana pada infrastruktur dan layanan dasar.",
+          "url": "https://sdgs.un.org/goals/goal11",
+          "akses": "2026-10-17"
+        }
+      ]
+    },
+    {
+      "id": "E07",
+      "judul": "Tawaran Investor Ruko dan Mal",
+      "jenis": "naratif",
+      "ronde": 5,
+      "narasi": "Investor menawarkan kawasan ruko. Lampiran tentang ruang terbuka dan trotoar belum jelas.",
+      "kenapa_penting": "Rencana kawasan perlu mempertimbangkan ruang publik dan akses pejalan kaki.",
+      "pilihan": [],
+      "sumber": [
+        {
+          "teks": "UN SDG 11 memuat indikator akses penduduk kota ke ruang terbuka publik.",
+          "url": "https://sdgs.un.org/goals/goal11",
+          "akses": "2026-10-17"
+        }
+      ]
+    },
+    {
+      "id": "E02",
+      "judul": "Demo Kios PKL",
+      "jenis": "interaktif",
+      "ronde": 6,
+      "narasi": "Sejak pagi pedagang menggelar dagangan di depan balai RW. Spanduk mereka berbunyi, ‘Kami cari makan, bukan cari musuh.’",
+      "kenapa_penting": "Penataan ruang perlu mempertimbangkan mata pencaharian warga yang berdagang.",
+      "pilihan": [
+        {
+          "id": "dialog",
+          "teks": "Buka dialog dan cari lokasi sementara",
+          "biaya": 4,
+          "efek": { "warga": 3, "akses": -1 },
+          "penutup": "Kesejahteraan naik, akses turun."
+        },
+        {
+          "id": "tertibkan",
+          "teks": "Tertibkan sesuai aturan",
+          "biaya": 2,
+          "efek": { "akses": 3, "warga": -5 },
+          "penutup": "Akses naik, kesejahteraan turun.",
+          "efek_tertunda": [
+            {
+              "setelahRonde": 2,
+              "efek": { "warga": 2 },
+              "catatan": "Penataan memberi manfaat bagi warga.",
+              "syarat": "Jika K15 sudah dipasang"
+            }
+          ]
+        },
+        {
+          "id": "tunda",
+          "teks": "Tunda aturan sampai ada solusi",
+          "biaya": 0,
+          "efek": { "warga": 1, "akses": -2 },
+          "penutup": "Kesejahteraan naik, akses turun.",
+          "efek_tertunda": [
+            {
+              "setelahRonde": 2,
+              "efek": { "akses": -1 },
+              "catatan": "Dampak penundaan penataan terasa kembali."
+            }
+          ]
+        }
+      ],
+      "jika_semua_pilihan_tidak_terjangkau": "lewati_tanpa_efek",
+      "sumber": [
+        {
+          "teks": "BPS mencatat sekitar 57,8% pekerja Indonesia berada di sektor informal pada Agustus 2025. Angka ini berskala nasional, bukan khusus PKL.",
+          "url": "https://www.nextindonesia.id/Update/2026/02/06/228/Porsi-Pekerja-Informal-Terus-Menyusut",
+          "akses": "2026-10-17"
+        }
+      ]
+    },
+    {
+      "id": "E08",
+      "judul": "Kemarau: Air Mengalir Lemah",
+      "jenis": "naratif",
+      "ronde": 7,
+      "narasi": "Saluran di gang atas hanya menetes. Warga mengantre jeriken dan membahas pembagian air.",
+      "kenapa_penting": "Gangguan distribusi air dapat memengaruhi kegiatan sehari-hari warga.",
+      "pilihan": [],
+      "sumber": [
+        {
+          "teks": "Gangguan distribusi dapat membuat banyak air bersih hilang sebelum sampai ke keran.",
+          "url": "https://sdgs.un.org/goals/goal6",
+          "akses": "2026-10-17"
+        }
+      ]
+    },
+    {
+      "id": "E09",
+      "judul": "Pejalan Kaki Terserempet",
+      "jenis": "naratif",
+      "ronde": 8,
+      "narasi": "Seorang pejalan kaki terserempet di dekat pasar. Ia sudah pulang, tetapi warga meminta jalan yang lebih aman.",
+      "kenapa_penting": "Ruang jalan perlu memperhatikan keselamatan orang yang berjalan kaki.",
+      "pilihan": [],
+      "sumber": [
+        {
+          "teks": "Polri mencatat 24.296 kematian akibat kecelakaan lalu lintas pada 2025.",
+          "url": "https://eppid.polri.go.id/news/detail/8792",
+          "akses": "2026-10-17"
+        }
+      ]
+    },
+    {
+      "id": "E03",
+      "judul": "Pagi Macet Parah di Depan Sekolah",
+      "jenis": "interaktif",
+      "ronde": 9,
+      "narasi": "Pukul 06.40, jalan depan sekolah padat merayap. Beberapa orang tua turun dari mobil dan berjalan kaki bersama anaknya.",
+      "kenapa_penting": "Pilihan perjalanan dan rancangan jalan memengaruhi pengalaman warga di sekitar sekolah.",
+      "pilihan": [
+        {
+          "id": "walking_bus",
+          "teks": "Buat walking bus dan ajak sekolah berkeliling",
+          "biaya": 3,
+          "efek": { "akses": 2, "warga": 2, "udara": 1 },
+          "penutup": "Akses, kesejahteraan, dan udara naik."
+        },
+        {
+          "id": "tambah_lajur",
+          "teks": "Tambah satu lajur jalan",
+          "biaya": 10,
+          "efek": { "akses": 2 },
+          "penutup": "Akses naik.",
+          "efek_tertunda": [
+            {
+              "setelahRonde": 3,
+              "efek": { "akses": -3 },
+              "catatan": "Kapasitas jalan bertambah, tetapi permintaan perjalanan juga dapat berubah."
+            }
+          ]
+        },
+        {
+          "id": "pasrah",
+          "teks": "Pasrah dulu, tunggu jalan lengang",
+          "biaya": 0,
+          "efek": { "akses": -3, "warga": -1 },
+          "penutup": "Akses dan kesejahteraan turun."
+        }
+      ],
+      "jika_semua_pilihan_tidak_terjangkau": "lewati_tanpa_efek",
+      "sumber": [
+        {
+          "teks": "Smart Growth America menjelaskan induced demand sebagai kaitan antara penambahan kapasitas jalan dan peningkatan perjalanan kendaraan; contoh utamanya berasal dari konteks Amerika Serikat.",
+          "url": "https://smartgrowthamerica.org/induced-demand-calculator/",
+          "akses": "2026-10-17"
+        }
+      ]
+    },
+    {
+      "id": "E10",
+      "judul": "Festival Cempaka",
+      "jenis": "naratif",
+      "ronde": 10,
+      "narasi": "Panitia mengusulkan festival kuliner, sepeda hias, dan lomba mewarnai. Warga mempertimbangkan manfaat bagi pedagang serta sampah kegiatan.",
+      "kenapa_penting": "Kegiatan bersama dapat memunculkan pertimbangan tentang ekonomi warga dan kebersihan lingkungan.",
+      "pilihan": [],
+      "sumber": [
+        {
+          "teks": "UN SDG 11 mencatat indikator pengumpulan dan pengelolaan sampah perkotaan.",
+          "url": "https://sdgs.un.org/goals/goal11",
+          "akses": "2026-10-17"
+        }
+      ]
+    }
+  ]
+}

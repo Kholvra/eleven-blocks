@@ -82,9 +82,102 @@ function targetFixtures(): TargetFixtures {
     actions: JSON.parse(readFileSync(resolve('src/data/actions.json'), 'utf8')) as unknown as TargetFixtures['actions'],
   };
 }
+interface EventChoice {
+  id: string;
+  teks: string;
+  penutup: string;
+  biaya: number;
+  efek: Record<string, unknown>;
+}
+
+interface EventFixtures {
+  event: {
+    id: string;
+    ronde: number;
+    pilihan: EventChoice[];
+    [key: string]: unknown;
+  }[];
+}
+
+function eventFixtures(): EventFixtures {
+  return JSON.parse(readFileSync(resolve('src/data/events.json'), 'utf8')) as EventFixtures;
+}
+
+function writeEvents(directory: string, events: EventFixtures): void {
+  writeFileSync(join(directory, 'events.json'), JSON.stringify(events));
+  writeFileSync(join(directory, 'fakta.json'), JSON.stringify({
+    fakta: [{
+      id: 'fixture',
+      target: '11.6.2',
+      teks: 'Fakta uji.',
+      konteks: 'Konteks uji.',
+      link_meter: 'udara',
+      ditampilkan: ['tooltip_meter'],
+      sumber: [{ teks: 'Rujukan uji.', url: 'https://example.org/fakta', akses: '2026-10-17' }],
+    }],
+  }));
+}
+
+function writeFullPackage(directory: string, events: EventFixtures): void {
+  const fixtures = targetFixtures();
+  writeTarget(directory, fixtures.cards, fixtures.actions);
+  writeEvents(directory, events);
+}
+
+describe('validasi jadwal event REQ-015', () => {
+  it('menerima paket event dengan jadwal, ID, tipe, dan pilihan kanonis', () => {
+    const directory = dataDirectory();
+    writeFullPackage(directory, eventFixtures());
+    const result = run(directory);
+    expect(result.status).toBe(0);
+  });
+
+  it('menolak jadwal atau ID event yang berubah', () => {
+    const cases = [
+      { mutate: (events: EventFixtures) => { events.event[0].ronde = 2; }, field: 'ronde' },
+      { mutate: (events: EventFixtures) => { events.event[1].id = events.event[0].id; }, field: 'id' },
+    ];
+    for (const { mutate, field } of cases) {
+      const directory = dataDirectory();
+      const events = eventFixtures();
+      mutate(events);
+      writeFullPackage(directory, events);
+      const result = run(directory);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(field);
+    }
+  });
+
+  it('menolak biaya atau jumlah pilihan interaktif yang menyimpang', () => {
+    const cases = [
+      { mutate: (events: EventFixtures) => { events.event[2].pilihan[0].biaya = 7; }, field: 'biaya' },
+      { mutate: (events: EventFixtures) => { events.event[2].pilihan.pop(); }, field: 'pilihan' },
+    ];
+    for (const { mutate, field } of cases) {
+      const directory = dataDirectory();
+      const events = eventFixtures();
+      mutate(events);
+      writeFullPackage(directory, events);
+      const result = run(directory);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(field);
+    }
+  });
+
+  it('menolak pilihan pada event naratif', () => {
+    const directory = dataDirectory();
+    const events = eventFixtures();
+    events.event[0].pilihan.push({ id: 'tambahan', teks: 'Tambahan', penutup: 'Selesai', biaya: 0, efek: {} });
+    writeFullPackage(directory, events);
+    const result = run(directory);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('pilihan');
+  });
+});
 function run(directory: string, ...args: string[]) {
   return spawnSync(process.execPath, [validator, '--data-dir', directory, ...args], { encoding: 'utf8' });
 }
+
 
 describe('validasi konten kartu REQ-014', () => {
   it('accepts complete target policy and action inventories in cards-only mode', () => {
