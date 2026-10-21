@@ -13,27 +13,44 @@ const nextStage: Record<TahapRonde, TahapRonde | null> = {
 export type GameAction =
   | { type: 'TRANSISI_FASE'; fase: Phase }
   | { type: 'PROSES_TAHAP_RONDE' }
-  | { type: 'SELESAI_RONDE' };
+  | { type: 'SELESAI_RONDE' }
+  | { type: 'SETELAN_AUDIO'; aktif: boolean };
 
 export interface GameEngine {
   getState(): GameState;
   dispatch(action: GameAction): boolean;
 }
 
-export function createGameEngine(initialState: GameState): GameEngine {
+export function createGameEngine(
+  initialState: GameState,
+  onStateChange?: (state: GameState) => void,
+  now: () => number = Date.now,
+): GameEngine {
   let state = structuredClone(initialState);
+
+  function commit(nextState: GameState): boolean {
+    nextState.waktuSimpan = now();
+    state = nextState;
+    onStateChange?.(state);
+    return true;
+  }
 
   return {
     getState: () => state,
     dispatch(action) {
+      if (action.type === 'SETELAN_AUDIO') {
+        const nextState = structuredClone(state);
+        nextState.setelan.audio = action.aktif;
+        return commit(nextState);
+      }
+
       if (action.type === 'PROSES_TAHAP_RONDE') {
         if (state.fase !== 'ronde') return false;
         const stage = nextStage[state.tahapRonde];
         if (stage === undefined || stage === null) return false;
         const nextState = structuredClone(state);
         nextState.tahapRonde = stage;
-        state = nextState;
-        return true;
+        return commit(nextState);
       }
 
       if (action.type === 'SELESAI_RONDE') {
@@ -49,8 +66,7 @@ export function createGameEngine(initialState: GameState): GameEngine {
           nextState.ronde += 1;
           nextState.fase = 'ronde';
         }
-        state = nextState;
-        return true;
+        return commit(nextState);
       }
 
       if (!allowedTransitions[state.fase].includes(action.fase)) return false;
@@ -60,8 +76,7 @@ export function createGameEngine(initialState: GameState): GameEngine {
       const nextState = structuredClone(state);
       nextState.fase = action.fase;
       if (action.fase === 'ronde') nextState.tahapRonde = 'berita';
-      state = nextState;
-      return true;
+      return commit(nextState);
     },
   };
 }

@@ -15,6 +15,7 @@ export const allowedTransitions: Record<Phase, readonly Phase[]> = {
 export interface GameMachine {
   getPhase(): Phase;
   transition(next: Phase): boolean;
+  restore(next: Phase): void;
 }
 
 export function createGameMachine(initialPhase: Phase = 'menu'): GameMachine {
@@ -26,6 +27,9 @@ export function createGameMachine(initialPhase: Phase = 'menu'): GameMachine {
       if (!allowedTransitions[phase].includes(next)) return false;
       phase = next;
       return true;
+    },
+    restore(next) {
+      phase = next;
     },
   };
 }

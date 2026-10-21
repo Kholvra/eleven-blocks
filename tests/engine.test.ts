@@ -128,5 +128,31 @@ describe('game engine', () => {
     expect(engine.getState().fase).toBe('ronde');
     expect(engine.getState().tahapRonde).toBe('berita');
   });
+  it('timestamps and emits each successful state change without changing rejected actions', () => {
+    const state = baruGame('save-timestamps');
+    const changes: GameState[] = [];
+    let now = 42;
+    const engine = createGameEngine(state, (nextState) => changes.push(structuredClone(nextState)), () => now);
+
+    now = 43;
+    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'tutorial' })).toBe(true);
+    expect(engine.getState().waktuSimpan).toBe(43);
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toEqual(engine.getState());
+
+    now = 44;
+    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(false);
+    expect(engine.getState().waktuSimpan).toBe(43);
+    expect(changes).toHaveLength(1);
+  });
+  it('keeps audio preference changes in the session state', () => {
+    const initialState = baruGame('audio-preference');
+    const engine = createGameEngine(initialState, undefined, () => 99);
+
+    expect(engine.dispatch({ type: 'SETELAN_AUDIO', aktif: false })).toBe(true);
+    expect(engine.getState().setelan.audio).toBe(false);
+    expect(engine.getState().waktuSimpan).toBe(99);
+    expect(initialState.setelan.audio).toBe(true);
+  });
 });
 

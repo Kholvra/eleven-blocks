@@ -30,4 +30,12 @@ describe('game machine', () => {
     expect(machine.transition(nextPhase)).toBe(false);
     expect(machine.getPhase()).toBe(initialPhase);
   });
+  it('restores a persisted phase even when it is not a normal transition', () => {
+    const machine = createGameMachine();
+
+    machine.restore('laporan');
+
+    expect(machine.getPhase()).toBe('laporan');
+    expect(machine.transition('tiket')).toBe(true);
+  });
 });

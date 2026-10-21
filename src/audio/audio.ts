@@ -2,7 +2,7 @@ import clickUrl from './sfx/click.mp3';
 import confirmUrl from './sfx/confirm.mp3';
 import impactUrl from './sfx/impact.mp3';
 
-const SETTINGS_KEY = 'elevenblocks.v1.settings';
+import { loadSettings, saveSettings } from '../save/settings';
 
 type SoundName = 'click' | 'confirm' | 'impact';
 type SoundState = {
@@ -20,30 +20,8 @@ export interface AudioController {
   playImpact(): void;
 }
 
-function readEnabled(): boolean {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? 'null');
-    if (value === null || typeof value !== 'object' || Array.isArray(value) || !('audio' in value)) return false;
-    return typeof value.audio === 'boolean' ? value.audio : false;
-  } catch {
-    return false;
-  }
-}
-
-function persistEnabled(enabled: boolean): void {
-  try {
-    const stored: unknown = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? 'null');
-    const settings = stored !== null && typeof stored === 'object' && !Array.isArray(stored)
-      ? Object.assign({}, stored)
-      : {};
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, audio: enabled }));
-  } catch {
-    // Storage can be unavailable; audio remains usable for this session.
-  }
-}
-
 export function createAudioController(): AudioController {
-  let enabled = readEnabled();
+  let enabled = loadSettings().audio;
   let context: AudioContext | null = null;
   let activation = 0;
   const warned = new Set<string>();
@@ -183,7 +161,7 @@ export function createAudioController(): AudioController {
       try {
         activation += 1;
         enabled = value;
-        persistEnabled(value);
+        saveSettings({ audio: value });
         if (value) unlockAndLoad();
       } catch {
         warnOnce('unlock', 'Audio preference could not be applied.');

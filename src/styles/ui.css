@@ -160,3 +160,35 @@
 .sound-toggle:active {
   background: var(--color-surface);
 }
+.menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.menu-action {
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--color-focus);
+  border-radius: var(--radius-control);
+  background: var(--color-focus);
+  color: var(--color-surface-raised);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.menu-action:focus-visible {
+  outline: 3px solid var(--color-surface-raised);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--color-focus);
+}
+
+.menu-action:hover {
+  background: var(--color-border);
+}
+
+.save-status:empty {
+  display: none;
+}
