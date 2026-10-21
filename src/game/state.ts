@@ -28,6 +28,7 @@ export function baruGame(seed: string): GameState {
     milik: [],
     perRondeAktif: [],
     antrian: [],
+    atribusiKeputusan: [],
     eventAktif: null,
     eventTerpakai: [],
     catatan: [],

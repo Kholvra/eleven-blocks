@@ -7,6 +7,7 @@ import type { GameAction } from '../src/game/engine';
 import { BUILDABLE_CELLS } from '../src/game/board';
 import { baruGame } from '../src/game/state';
 import type { GameState, Phase } from '../src/game/types';
+import { hitungSkorAkhir } from '../src/game/report';
 
 interface EngineActions {
   dispatch(action: GameAction): boolean;
@@ -130,7 +131,7 @@ describe('game engine', () => {
   });
 
 
-  it('completes round 10 to ringkasan without income or round 11', () => {
+  it('completes round 10 directly to laporan without income or round 11', () => {
     const state = baruGame('tenth-round');
     state.ronde = 10;
     const engine = createGameEngine(state);
@@ -141,16 +142,12 @@ describe('game engine', () => {
 
     expect(engine.getState().anggaran).toBe(beforeIncome);
     expect(engine.getState().ronde).toBe(10);
-    expect(engine.getState().fase).toBe('ringkasan');
+    expect(engine.getState().fase).toBe('laporan');
 
-    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'tiket' })).toBe(false);
-    expect(engine.getState().fase).toBe('ringkasan');
 
     expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ronde' })).toBe(false);
-    expect(engine.getState().fase).toBe('ringkasan');
-
-    dispatch(engine, 'laporan');
     expect(engine.getState().fase).toBe('laporan');
+
 
     expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'tiket' })).toBe(true);
     expect(engine.getState().fase).toBe('tiket');
@@ -465,6 +462,7 @@ const rejectedCellIndexes: Array<[string, number]> = [
     expect(engine.getState().antrian).toEqual([
       {
         ronde: 5,
+        rondeAsal: 1,
         sumber: 'K18',
         efek: { akses: -3, udara: -2 },
         catatan: 'Permintaan terinduksi: lebih banyak kendaraan pindah ke jalan baru.',
@@ -485,7 +483,7 @@ const rejectedCellIndexes: Array<[string, number]> = [
 
     expect(engine.getState().meter.warga).toBe(52);
     expect(engine.getState().antrian).toEqual([
-      { ronde: 3, sumber: 'ACT01', efek: { warga: 1 }, catatan: 'Efek permainan: manfaat dialog berlanjut.' },
+      { ronde: 3, rondeAsal: 1, sumber: 'ACT01', efek: { warga: 1 }, catatan: 'Efek permainan: manfaat dialog berlanjut.' },
     ]);
   });
 
@@ -534,25 +532,33 @@ const rejectedCellIndexes: Array<[string, number]> = [
     expect(engine.getState().antrian).toEqual([]);
   });
 
-  it('caps K18 delayed effects at round 10 and removes them after resolution', () => {
+  it('records actual clamped K18 delayed effects once when they are capped at round 10', () => {
     const state = baruGame('k18-final-round');
     state.fase = 'ronde';
     state.tahapRonde = 'tangan';
     state.ronde = 7;
     state.tangan = [17];
-    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
+    state.meter = { udara: 1, akses: 99, hijau: 50, warga: 50 };
     const engine = createGameEngine(state);
     expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 17 })).toBe(true);
     engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
     expect(engine.getState().antrian[0].ronde).toBe(10);
+    expect(engine.getState().antrian[0].rondeAsal).toBe(7);
 
     const final = structuredClone(engine.getState());
     final.ronde = 10;
-    final.tahapRonde = 'tangan';
+    final.tahapRonde = 'berita';
     final.kartuDimainkanRondeIni = null;
     const finalEngine = createGameEngine(final);
-    expect(finalEngine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
-    expect(finalEngine.getState().meter).toEqual({ udara: 48, akses: 54, hijau: 50, warga: 50 });
+    finishRound(finalEngine);
+    expect(finalEngine.getState().fase).toBe('laporan');
+    expect(finalEngine.getState().meter).toEqual({ udara: 0, akses: 97, hijau: 50, warga: 50 });
+    expect(finalEngine.getState().atribusiKeputusan).toContainEqual({
+      ronde: 7,
+      langsung: { akses: 1 },
+      tertunda: { akses: -3, udara: -1 },
+    });
+    expect(hitungSkorAkhir(finalEngine.getState())).toMatchObject({ status: 'siap', mi: 83 });
     expect(finalEngine.getState().antrian).toEqual([]);
   });
   it('resolves K19 delayed penalties at the scheduled round', () => {
@@ -643,6 +649,7 @@ const rejectedCellIndexes: Array<[string, number]> = [
     const engine = createGameEngine(state);
 
     expect(engine.dispatch({ type: 'TERAPKAN_HUJAN_EKSTREM' })).toBe(true);
+    expect(engine.getState().atribusiKeputusan).toEqual([]);
     expect(engine.getState().meter).toEqual(expectedMeters);
     const resolved = structuredClone(engine.getState());
     expect(engine.dispatch({ type: 'TERAPKAN_HUJAN_EKSTREM' })).toBe(false);

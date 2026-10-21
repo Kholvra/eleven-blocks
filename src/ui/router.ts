@@ -1,6 +1,8 @@
 import { mountAccessibilityControls } from './accessibilityControls';
 import { createAudioController } from '../audio/audio';
 import type { GameMachine, Phase } from '../game/machine';
+import type { SkorAkhir } from '../game/report';
+import type { GameState } from '../game/types';
 
 const phaseCopy: Record<Phase, { title: string; description: string }> = {
   menu: { title: 'Eleven Blocks', description: 'Sepuluh ronde untuk satu distrik.' },
@@ -19,6 +21,8 @@ export interface ScreenRouterOptions {
   onStartNew(): Phase;
   onContinue(): Phase | null;
   onAudioChange(enabled: boolean): void;
+  getGameState(): GameState;
+  hitungSkorAkhir(state: GameState): SkorAkhir;
 }
 
 export interface ScreenRouter {
@@ -68,6 +72,18 @@ export function createScreenRouter(
     soundToggles.push(soundToggle);
 
     screen.append(heading, description, soundToggle);
+    if (phase === 'laporan') {
+      const results = document.createElement('section');
+      results.className = 'results-content';
+      results.setAttribute('aria-labelledby', 'results-heading');
+
+      const resultHeading = document.createElement('h2');
+      resultHeading.id = 'results-heading';
+      resultHeading.textContent = 'Hasil sesi';
+      results.append(resultHeading);
+      screen.append(results);
+    }
+
     if (phase === 'menu') {
       const actions = document.createElement('div');
       actions.className = 'menu-actions';
@@ -122,6 +138,47 @@ export function createScreenRouter(
     const current = machine.getPhase();
     for (const phase of Object.keys(screens) as Phase[]) {
       screens[phase].hidden = phase !== current;
+    }
+    if (current === 'laporan') renderReport(screens.laporan.querySelector('.results-content')!);
+  }
+
+  function renderReport(results: HTMLElement): void {
+    const resultHeading = results.querySelector('#results-heading');
+    if (!resultHeading) return;
+    results.replaceChildren(resultHeading);
+
+    const score = options.hitungSkorAkhir(options.getGameState());
+    if (score.status === 'siap') {
+      const rating = document.createElement('p');
+      rating.className = 'results-rating';
+      rating.setAttribute('aria-label', `Nilai ${score.bintang} dari 5 bintang`);
+      rating.textContent = `${score.bintang} / 5 bintang`;
+
+      const supporting = document.createElement('dl');
+      supporting.className = 'results-supporting';
+      for (const [label, value] of [
+        ['Ambang tercapai (T)', score.t],
+        ['Meter kritis (C)', score.c],
+        ['Indeks Miopia (MI)', score.mi],
+      ] as const) {
+        const item = document.createElement('div');
+        const term = document.createElement('dt');
+        term.textContent = label;
+        const detail = document.createElement('dd');
+        detail.textContent = String(value);
+        item.append(term, detail);
+        supporting.append(item);
+      }
+
+      const disclaimer = document.createElement('p');
+      disclaimer.className = 'results-disclaimer';
+      disclaimer.textContent = 'MI adalah heuristik refleksi permainan, bukan ukuran psikologis tervalidasi atau hasil belajar.';
+      results.append(rating, supporting, disclaimer);
+    } else {
+      const unavailable = document.createElement('p');
+      unavailable.className = 'results-unavailable';
+      unavailable.textContent = score.alasan;
+      results.append(unavailable);
     }
   }
 

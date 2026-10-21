@@ -13,6 +13,12 @@ export type KunciMeter = 'udara' | 'akses' | 'hijau' | 'warga';
 
 export type Efek = Partial<Record<KunciMeter, number>>;
 
+export interface AtribusiKeputusan {
+  ronde: number;
+  langsung: Efek;
+  tertunda: Efek;
+}
+
 export interface GameState {
   versi: 1;
   seed: string;
@@ -36,7 +42,15 @@ export interface GameState {
   kartuDimainkanRondeIni: string | null;
   milik: number[];
   perRondeAktif: never[];
-  antrian: Array<{ ronde: number; sumber: string; efek: Efek; catatan?: string; syarat?: string }>;
+  antrian: Array<{
+    ronde: number;
+    sumber: string;
+    efek: Efek;
+    rondeAsal?: number;
+    catatan?: string;
+    syarat?: string;
+  }>;
+  atribusiKeputusan?: AtribusiKeputusan[];
   eventAktif: { id: string; dipilih: string | null } | null;
   eventTerpakai: string[];
   catatan: Array<{

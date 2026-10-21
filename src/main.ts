@@ -9,6 +9,7 @@ import type { GameState, Phase } from './game/types';
 import { createSaveRepository } from './save/save';
 import { loadSettings } from './save/settings';
 import { createScreenRouter, type ScreenRouter } from './ui/router';
+import { hitungSkorAkhir } from './game/report';
 import { renderWebGLFallback } from './ui/webglFallback';
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -48,14 +49,19 @@ if (!supportsWebGL2()) {
   }
 
   let router: ScreenRouter | null = null;
+  let machine: ReturnType<typeof createGameMachine> | null = null;
   const saveState = (state: GameState): void => {
     const saved = saveRepository.save(state);
+    if (machine && machine.getPhase() !== state.fase) {
+      machine.restore(state.fase);
+      router?.render();
+    }
     router?.setStatus(saved ? '' : 'Simpanan perangkat tidak tersedia. Sesi ini tetap berjalan selama halaman terbuka.');
   };
   let engine = createGameEngine(initialState, saveState);
 
   setupScene(app, () => engine.getState(), undefined, models);
-  const machine = createGameMachine();
+  machine = createGameMachine();
   const completed = loadResult.status === 'valid' && loadResult.state.ronde === 10 &&
     ['ringkasan', 'laporan', 'tiket'].includes(loadResult.state.fase);
 
@@ -87,6 +93,8 @@ if (!supportsWebGL2()) {
     onAudioChange(enabled) {
       engine.dispatch({ type: 'SETELAN_AUDIO', aktif: enabled });
     },
+    getGameState: () => engine.getState(),
+    hitungSkorAkhir,
   });
   router.render();
 
