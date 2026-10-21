@@ -4,6 +4,8 @@ import events from '../data/events.json';
 import hudCopy from '../data/hud.json';
 import { BUILDABLE_CELLS, labelCell } from '../game/board';
 import { biayaAksi, biayaKartu, firstOpenBuildableCell, statusAksi, statusKartu } from '../game/cards';
+import { hitungPreview } from '../game/preview';
+import type { PreviewCandidate, PreviewResult } from '../game/preview';
 import type { GameAction } from '../game/engine';
 import type { Efek, GameState, KunciMeter, TahapRonde } from '../game/types';
 
@@ -123,6 +125,14 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   cardHeading.textContent = hudCopy.copy.policy;
   const cardList = document.createElement('ul');
   cardList.className = 'hud-card-list';
+  const preview = document.createElement('section');
+  preview.className = 'hud-preview';
+  preview.hidden = true;
+  preview.setAttribute('aria-live', 'polite');
+  preview.setAttribute('aria-atomic', 'true');
+  const previewHeading = document.createElement('h2');
+  previewHeading.textContent = 'Pratinjau dampak';
+  preview.append(previewHeading);
   const actionHeading = document.createElement('h2');
   actionHeading.textContent = hudCopy.copy.actions;
   const actionList = document.createElement('ul');
@@ -130,7 +140,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   actionList.setAttribute('aria-label', hudCopy.copy.actions);
   const content = document.createElement('div');
   content.className = 'hud-content';
-  content.append(news, cardHeading, cardList, actionHeading, actionList);
+  content.append(news, cardHeading, cardList, preview, actionHeading, actionList);
   const sidebar = document.createElement('aside');
   sidebar.className = 'hud-sidebar';
   sidebar.append(boardHeading, boardList);
@@ -181,6 +191,8 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
 
   return {
     render() {
+      preview.hidden = true;
+      preview.replaceChildren(previewHeading);
       const state = options.getState();
       if (!validState(state)) {
         hud.hidden = true;
@@ -219,8 +231,8 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
       }
       renderNews(newsBody, state.ronde);
       renderBoard(boardList, state);
-      renderCards(cardList, state, options);
-      renderActions(actionList, state, options);
+      renderCards(cardList, state, options, (candidate) => renderPreview(preview, candidate, state));
+      renderActions(actionList, state, options, (candidate) => renderPreview(preview, candidate, state));
       advance.textContent = state.fase === 'ringkasan'
         ? hudCopy.copy.viewReport
         : state.tahapRonde === 'transisi'
@@ -323,7 +335,12 @@ function renderBoard(list: HTMLOListElement, state: GameState): void {
   }
 }
 
-function renderCards(list: HTMLUListElement, state: GameState, options: HudOptions): void {
+function renderCards(
+  list: HTMLUListElement,
+  state: GameState,
+  options: HudOptions,
+  selectCandidate: (candidate: PreviewCandidate) => void,
+): void {
   list.replaceChildren();
   if (state.tangan.length === 0) {
     const empty = document.createElement('li');
@@ -342,13 +359,53 @@ function renderCards(list: HTMLUListElement, state: GameState, options: HudOptio
     const description = document.createElement('p');
     description.textContent = card.deskripsi;
     const costLabel = document.createElement('p');
-    costLabel.textContent = `${hudCopy.copy.cost}: ${biayaKartu(index) ?? hudCopy.copy.unavailableCost}`;
+    costLabel.textContent = `${hudCopy.copy.cost}: ${biayaKartu(index) ?? hudCopy.copy.unavailableCost} poin`;
+    const cellLabel = document.createElement('label');
+    cellLabel.className = 'hud-preview-cell-label';
+    const selectId = `preview-cell-${index}`;
+    cellLabel.htmlFor = selectId;
+    cellLabel.textContent = 'Sel untuk pratinjau';
+    const cellSelect = document.createElement('select');
+    cellSelect.id = selectId;
+    cellSelect.className = 'hud-preview-cell';
+    const openCells = BUILDABLE_CELLS.filter((cell) => state.papan.ubin[cell] === null || state.papan.ubin[cell] === undefined);
+    for (const cell of openCells) {
+      const option = document.createElement('option');
+      option.value = String(cell);
+      option.textContent = labelCell(cell);
+      cellSelect.append(option);
+    }
+    const defaultCell = firstOpenBuildableCell(state);
+    if (defaultCell !== null) cellSelect.value = String(defaultCell);
+    cellSelect.disabled = openCells.length === 0;
+    if (openCells.length === 0) {
+      const noCell = document.createElement('p');
+      noCell.className = 'hud-preview-reason';
+      noCell.textContent = 'Tidak ada sel kosong yang dapat dibangun untuk pratinjau.';
+      item.append(noCell);
+    }
+    const previewButton = document.createElement('button');
+    previewButton.type = 'button';
+    previewButton.className = 'hud-preview-button';
+    previewButton.textContent = 'Pratinjau dampak';
+    previewButton.disabled = defaultCell === null;
+    previewButton.addEventListener('click', () => {
+      const cell = Number(cellSelect.value);
+      selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell });
+    });
+    cellSelect.addEventListener('change', () => {
+      const cell = Number(cellSelect.value);
+      selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell });
+    });
     const play = document.createElement('button');
     play.type = 'button';
     play.className = 'hud-action-button';
     play.textContent = hudCopy.copy.playPolicy;
-    play.disabled = !availability.available;
-    item.append(title, description, costLabel);
+    play.disabled = !availability.available || defaultCell === null;
+    item.append(title, description, costLabel, cellLabel, cellSelect, previewButton);
+    if (card.kenapa_penting) item.append(makeCopyBlock('Kenapa penting', card.kenapa_penting));
+    if (card.kondisi) item.append(makeCopyBlock('Kondisi dan konsekuensi', card.kondisi));
+    appendEffectExplanations(item, card.efek);
     if (!availability.available) {
       item.classList.add('hud-card-unavailable');
       const reason = document.createElement('p');
@@ -357,14 +414,19 @@ function renderCards(list: HTMLUListElement, state: GameState, options: HudOptio
     }
     item.append(play);
     play.addEventListener('click', () => {
-      const cell = firstOpenBuildableCell(options.getState());
-      if (cell !== null && options.dispatch({ type: 'MAIN_KARTU', kartuIdx: index, selIdx: cell })) options.onStateChange();
+      const cell = Number(cellSelect.value);
+      if (options.dispatch({ type: 'MAIN_KARTU', kartuIdx: index, selIdx: cell })) options.onStateChange();
     });
     list.append(item);
   }
 }
 
-function renderActions(list: HTMLUListElement, state: GameState, options: HudOptions): void {
+function renderActions(
+  list: HTMLUListElement,
+  state: GameState,
+  options: HudOptions,
+  selectCandidate: (candidate: PreviewCandidate) => void,
+): void {
   list.replaceChildren();
   for (const action of actions.aksi) {
     const item = document.createElement('li');
@@ -374,25 +436,34 @@ function renderActions(list: HTMLUListElement, state: GameState, options: HudOpt
     const description = document.createElement('p');
     description.textContent = action.deskripsi;
     const costLabel = document.createElement('p');
-    costLabel.textContent = `${hudCopy.copy.cost}: ${biayaAksi(action.id) ?? hudCopy.copy.unavailableCost}`;
+    costLabel.textContent = `${hudCopy.copy.cost}: ${biayaAksi(action.id) ?? hudCopy.copy.unavailableCost} poin`;
     item.append(title, description, costLabel);
+    if (action.kenapa_penting) item.append(makeCopyBlock('Kenapa penting', action.kenapa_penting));
+    if (action.id === 'ACT04') item.append(makeCopyBlock('Perubahan meter', 'Aksi ini tidak mengubah meter.'));
+    else appendEffectExplanations(item, action.efek);
     const cardOptions = action.id === 'ACT04' ? state.tangan : [undefined];
     let allUnavailable = true;
     for (const cardIndex of cardOptions) {
+      const availability = statusAksi(state, action.id, cardIndex);
+      const previewButton = document.createElement('button');
+      previewButton.type = 'button';
+      previewButton.className = 'hud-preview-button';
+      previewButton.textContent = 'Pratinjau dampak';
+      previewButton.addEventListener('click', () => {
+        selectCandidate({ type: 'action', aksiId: action.id, ...(cardIndex === undefined ? {} : { kartuIdx: cardIndex }) });
+      });
+      item.append(previewButton);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'hud-action-button';
       button.textContent = cardIndex === undefined
         ? hudCopy.copy.useAction.replace('{name}', action.nama)
         : hudCopy.copy.exchangeCard.replace('{card}', cards.kebijakan[cardIndex]?.nama ?? '');
-      const availability = statusAksi(state, action.id, cardIndex);
       button.disabled = !availability.available;
       if (availability.available) allUnavailable = false;
       item.append(button);
       button.addEventListener('click', () => {
-        if (options.dispatch({ type: 'MAIN_AKSI', aksiId: action.id, ...(cardIndex === undefined ? {} : { kartuIdx: cardIndex }) })) {
-          options.onStateChange();
-        }
+        if (options.dispatch({ type: 'MAIN_AKSI', aksiId: action.id, ...(cardIndex === undefined ? {} : { kartuIdx: cardIndex }) })) options.onStateChange();
       });
     }
     if (allUnavailable) {
@@ -403,3 +474,101 @@ function renderActions(list: HTMLUListElement, state: GameState, options: HudOpt
     list.append(item);
   }
 }
+
+function makeCopyBlock(label: string, copy: string): HTMLElement {
+  const block = document.createElement('p');
+  block.className = 'hud-card-context';
+  const strong = document.createElement('strong');
+  strong.textContent = `${label}: `;
+  block.append(strong, document.createTextNode(copy));
+  return block;
+}
+
+function appendEffectExplanations(container: HTMLElement, effect: { langsung?: Efek; tertunda?: Array<{ setelahRonde: number; efek: Efek; catatan?: string; syarat?: string }> }): void {
+  const direct = effect.langsung ?? {};
+  const directValues = formatDelta(direct);
+  if (directValues) container.append(makeCopyBlock('Efek langsung', directValues));
+  for (const delayed of effect.tertunda ?? []) {
+    const timing = `Efek tertunda setelah ${delayed.setelahRonde} ronde`;
+    const details = [formatDelta(delayed.efek), delayed.catatan, delayed.syarat ? `Syarat: ${delayed.syarat}` : ''].filter(Boolean).join('. ');
+    container.append(makeCopyBlock(timing, details));
+  }
+}
+
+function renderPreview(container: HTMLElement, candidate: PreviewCandidate, state: GameState): void {
+  let result: PreviewResult;
+  try {
+    result = hitungPreview(state, candidate);
+  } catch {
+    container.hidden = false;
+    const heading = container.firstElementChild;
+    const error = document.createElement('p');
+    error.className = 'hud-preview-error';
+    error.setAttribute('role', 'alert');
+    error.textContent = 'Pratinjau tidak dapat dihitung sekarang. Kartu tetap dapat dimainkan jika tersedia.';
+    const exclusions = document.createElement('p');
+    exclusions.className = 'hud-preview-exclusions';
+    exclusions.textContent = 'Event dan pilihan pemain di ronde mendatang tidak dihitung.';
+    container.replaceChildren(heading!, error, exclusions);
+    return;
+  }
+  container.hidden = false;
+  const details = document.createElement('div');
+  details.className = 'hud-preview-content';
+  const heading = document.createElement('h3');
+  const description = document.createElement('p');
+  const why = document.createElement('p');
+  const cost = document.createElement('p');
+  const reference = candidate.type === 'policy' ? cards.kebijakan[candidate.kartuIdx] : actions.aksi.find((action) => action.id === candidate.aksiId);
+  heading.textContent = reference?.nama ?? 'Kartu atau aksi';
+  description.textContent = reference?.deskripsi ?? '';
+  why.textContent = reference?.kenapa_penting ? `Kenapa penting: ${reference.kenapa_penting}` : '';
+  details.append(heading, description);
+  if (why.textContent) details.append(why);
+  if (reference && 'kondisi' in reference && reference.kondisi) details.append(makeCopyBlock('Kondisi', reference.kondisi));
+  if (result.status === 'ready' && candidate.type === 'policy' && candidate.selIdx !== undefined) {
+    details.append(makeCopyBlock('Penempatan', labelCell(candidate.selIdx)));
+  }
+  if (result.status === 'ready' && reference) appendEffectExplanations(details, reference.efek);
+  const status = document.createElement('p');
+  status.className = result.status === 'invalid' ? 'hud-preview-error' : 'hud-preview-status';
+  if (result.status === 'invalid') status.setAttribute('role', 'alert');
+  status.textContent = result.status === 'invalid'
+    ? `Tidak dapat dihitung: ${result.reason ?? 'alasan tidak tersedia'}`
+    : result.dapatDimainkan ? 'Biaya terjangkau, aksi dapat dimainkan.' : 'Belum dapat dimainkan saat ini.';
+  cost.textContent = result.status === 'invalid'
+    ? 'Biaya belum dapat dihitung.'
+    : `Biaya: ${result.biaya === null ? 'tidak tersedia' : `${result.biaya} poin`}. Anggaran saat ini: ${state.anggaran} poin.`;
+  details.append(cost, status);
+  if (result.status === 'ready') {
+    if (result.tanpaPerubahan) details.append(makeCopyBlock('Perubahan meter', 'Aksi ini tidak mengubah meter.'));
+    else if (result.horizons.length !== 3) {
+      details.append(makeCopyBlock('Pratinjau tidak lengkap', 'Tiga cakrawala tidak tersedia, sehingga angka tidak ditampilkan.'));
+    } else {
+      const horizons = document.createElement('ol');
+      horizons.className = 'hud-preview-horizons';
+      for (const horizon of result.horizons) {
+        const row = document.createElement('li');
+        const label = document.createElement('h4');
+        label.textContent = horizon.label;
+        const delta = document.createElement('p');
+        delta.textContent = horizon.lengkap ? formatDelta(horizon.delta) || 'Tidak ada perubahan meter yang diperkirakan.' : 'Belum lengkap; lihat catatan kondisi di bawah.';
+        row.append(label, delta);
+        horizons.append(row);
+      }
+      details.append(horizons);
+    }
+  }
+  if (result.catatan.length > 0) {
+    const notes = document.createElement('ul');
+    notes.className = 'hud-preview-notes';
+    for (const note of result.catatan) {
+      const row = document.createElement('li');
+      row.textContent = note;
+      notes.append(row);
+    }
+    details.append(notes);
+  }
+  container.replaceChildren(container.firstElementChild!, details);
+}
+

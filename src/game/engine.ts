@@ -227,7 +227,7 @@ function resolveRoundEffects(state: GameState): void {
     const pending = takeDueEffects(state.antrian, state.ronde);
     state.antrian = pending.remaining;
     for (const effect of pending.due) {
-      if (!synergySatisfied(effect.sumber, effect.syarat, ownedCodes)) continue;
+      if (evaluateCondition(effect.sumber, effect.syarat, ownedCodes) !== true) continue;
       const delta = apply(effect.efek);
       if (effect.rondeAsal !== undefined) recordAttribution(effect.rondeAsal, 'tertunda', delta);
     }
@@ -269,7 +269,7 @@ function resolveRoundEffects(state: GameState): void {
   });
 }
 
-function synergySatisfied(source: string, condition: string | undefined, owned: Set<string>): boolean {
+export function evaluateCondition(source: string, condition: string | undefined, owned: Set<string>): boolean | undefined {
   if (condition === undefined) return true;
   switch (`${source}:${condition}`) {
     case 'K03:K04 tidak ada':
@@ -289,6 +289,6 @@ function synergySatisfied(source: string, condition: string | undefined, owned: 
     case 'K16:Tidak ada kios sementara dan informasi':
       return true;
     default:
-      return false;
+      return undefined;
   }
 }
