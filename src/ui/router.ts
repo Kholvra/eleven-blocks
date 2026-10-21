@@ -1,8 +1,11 @@
+import hudCopy from '../data/hud.json';
+import { createHud, type HudRenderer } from './hud';
+import type { GameAction } from '../game/engine';
+import type { GameState } from '../game/types';
 import { mountAccessibilityControls } from './accessibilityControls';
 import { createAudioController } from '../audio/audio';
 import type { GameMachine, Phase } from '../game/machine';
 import type { SkorAkhir } from '../game/report';
-import type { GameState } from '../game/types';
 
 const phaseCopy: Record<Phase, { title: string; description: string }> = {
   menu: { title: 'Eleven Blocks', description: 'Sepuluh ronde untuk satu distrik.' },
@@ -18,6 +21,8 @@ export interface ScreenRouterOptions {
   canContinue: boolean;
   continueLabel: string;
   statusMessage?: string;
+  getState(): GameState;
+  dispatch(action: GameAction): boolean;
   onStartNew(): Phase;
   onContinue(): Phase | null;
   onAudioChange(enabled: boolean): void;
@@ -36,6 +41,7 @@ export function createScreenRouter(
   options: ScreenRouterOptions,
 ): ScreenRouter {
   const screens = {} as Record<Phase, HTMLElement>;
+  const huds: Partial<Record<Phase, HudRenderer>> = {};
   const audio = createAudioController();
   const soundToggles: HTMLButtonElement[] = [];
   let statusMessage = options.statusMessage ?? '';
@@ -79,7 +85,6 @@ export function createScreenRouter(
       options.onAudioChange(enabled);
     });
     soundToggles.push(soundToggle);
-
     screen.append(heading, description, soundToggle);
     if (phase === 'laporan') {
       const results = document.createElement('section');
@@ -93,6 +98,18 @@ export function createScreenRouter(
       screen.append(results);
     }
 
+    if (phase === 'tutorial') {
+      const begin = document.createElement('button');
+      begin.className = 'menu-action';
+      begin.type = 'button';
+      begin.textContent = hudCopy.copy.startRound;
+      begin.addEventListener('click', () => {
+        if (!options.dispatch({ type: 'TRANSISI_FASE', fase: 'ronde' })) return;
+        machine.restore(options.getState().fase);
+        render();
+      });
+      screen.append(begin);
+    }
     if (phase === 'menu') {
       const actions = document.createElement('div');
       actions.className = 'menu-actions';
@@ -138,16 +155,29 @@ export function createScreenRouter(
       statusTexts.push(phaseStatus);
       screen.append(phaseStatus);
     }
+    if (phase === 'ronde' || phase === 'event' || phase === 'ringkasan') {
+      huds[phase] = createHud(screen, {
+        getState: options.getState,
+        dispatch: options.dispatch,
+        onStateChange() {
+          machine.restore(options.getState().fase);
+          render();
+        },
+      });
+    }
     mountAccessibilityControls(screen);
     root.append(screen);
     screens[phase] = screen;
   }
 
   function render(): void {
+    const statePhase = options.getState().fase;
+    if (machine.getPhase() !== statePhase) machine.restore(statePhase);
     const current = machine.getPhase();
     for (const phase of Object.keys(screens) as Phase[]) {
       screens[phase].hidden = phase !== current;
     }
+    huds[current]?.render();
     if (current === 'laporan') renderReport(screens.laporan.querySelector('.results-content')!);
   }
 
@@ -156,7 +186,7 @@ export function createScreenRouter(
     if (!resultHeading) return;
     results.replaceChildren(resultHeading);
 
-    const score = options.hitungSkorAkhir(options.getGameState());
+    const score = options.hitungSkorAkhir(options.getState());
     if (score.status === 'siap') {
       const rating = document.createElement('p');
       rating.className = 'results-rating';
