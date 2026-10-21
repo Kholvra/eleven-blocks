@@ -33,7 +33,11 @@ if (!supportsWebGL2()) {
   renderWebGLFallback(app);
 } else {
   // Scene setup imports Three.js; defer it until WebGL2 support is known.
-  const { setupScene } = await import('./scene/setup');
+  const [{ setupScene }, { loadBuildingModels }] = await Promise.all([
+    import('./scene/setup'),
+    import('./scene/assets'),
+  ]);
+  const models = await loadBuildingModels();
   const saveRepository = createSaveRepository();
   const loadResult = saveRepository.load();
   const initialState = loadResult.status === 'valid'
@@ -50,7 +54,7 @@ if (!supportsWebGL2()) {
   };
   let engine = createGameEngine(initialState, saveState);
 
-  setupScene(app, () => engine.getState());
+  setupScene(app, () => engine.getState(), undefined, models);
   const machine = createGameMachine();
   const completed = loadResult.status === 'valid' && loadResult.state.ronde === 10 &&
     ['ringkasan', 'laporan', 'tiket'].includes(loadResult.state.fase);
