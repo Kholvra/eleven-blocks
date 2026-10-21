@@ -2,6 +2,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/ui.css';
 import './styles/layout-hp.css';
+import { baruGame } from './game/state';
 import { createGameMachine } from './game/machine';
 import { createScreenRouter } from './ui/router';
 import { renderWebGLFallback } from './ui/webglFallback';
@@ -29,7 +30,8 @@ if (!supportsWebGL2()) {
 } else {
   // A static import would evaluate Three.js before the WebGL2 probe.
   const { setupScene } = await import('./scene/setup');
-  setupScene(app);
+  const state = baruGame('eleven-blocks');
+  setupScene(app, () => state);
   const machine = createGameMachine();
   const router = createScreenRouter(app, machine);
   router.render();

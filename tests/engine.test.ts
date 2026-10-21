@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createGameEngine } from '../src/game/engine';
+import type { GameAction } from '../src/game/engine';
+import { BUILDABLE_CELLS } from '../src/game/board';
 import { baruGame } from '../src/game/state';
 import type { GameState, Phase } from '../src/game/types';
 
 interface EngineActions {
-  dispatch(
-    action:
-      | { type: 'TRANSISI_FASE'; fase: Phase }
-      | { type: 'PROSES_TAHAP_RONDE' }
-      | { type: 'SELESAI_RONDE' },
-  ): void;
+  dispatch(action: GameAction): boolean;
   getState(): GameState;
 }
 
@@ -127,6 +124,96 @@ describe('game engine', () => {
     expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ronde' })).toBe(true);
     expect(engine.getState().fase).toBe('ronde');
     expect(engine.getState().tahapRonde).toBe('berita');
+  });
+});
+
+function placementEngine(configure?: (state: GameState) => void) {
+  const state = baruGame('policy-placement');
+  state.fase = 'ronde';
+  state.tahapRonde = 'tangan';
+  state.tangan = [4, 5];
+  configure?.(state);
+  return createGameEngine(state);
+}
+
+function expectRejectedWithoutMutation(engine: EngineActions, kartuIdx = 4, selIdx = 17) {
+  const previousState = engine.getState();
+  const previousSnapshot = structuredClone(previousState);
+
+  expect(engine.dispatch({ type: 'TEMPATKAN_KEBIJAKAN', kartuIdx, selIdx })).toBe(false);
+  expect(engine.getState()).toBe(previousState);
+  expect(engine.getState()).toEqual(previousSnapshot);
+}
+
+
+
+const rejectedPlacementCases: Array<[string, (state: GameState) => void]> = [
+  ['wrong phase', (state) => { state.fase = 'menu'; }],
+  ['wrong round stage', (state) => { state.tahapRonde = 'berita'; }],
+  ['card absent from hand', (state) => { state.tangan = [5]; }],
+  ['card already played this round', (state) => { state.kartuDimainkanRondeIni = 'aksi'; }],
+  ['card already placed', (state) => { state.milik = [4]; }],
+  ['occupied cell', (state) => { state.papan.ubin[17] = 9; }],
+];
+describe('policy placement', () => {
+  it('rejects a card already occupying another cell when ownership data omits it', () => {
+    const engine = placementEngine((state) => {
+      state.papan.ubin[18] = 4;
+      state.milik = [];
+    });
+
+    expectRejectedWithoutMutation(engine);
+  });
+});
+
+const rejectedCellIndexes: Array<[string, number]> = [
+  ['non-buildable cell', 16],
+  ['negative cell index', -1],
+  ['cell outside the 8×8 board', 64],
+  ['cell outside the tile array', 256],
+  ['non-integer cell index', 17.5],
+];
+
+describe('policy placement', () => {
+  it('places a policy into one empty buildable cell without changing costs or meters', () => {
+    const engine = placementEngine();
+    const previousState = engine.getState();
+    const expectedState = structuredClone(previousState);
+    expectedState.papan.ubin[17] = 4;
+    expectedState.tangan = [5];
+    expectedState.milik = [4];
+    expectedState.kartuDimainkanRondeIni = 'kebijakan';
+
+    expect(engine.dispatch({ type: 'TEMPATKAN_KEBIJAKAN', kartuIdx: 4, selIdx: 17 })).toBe(true);
+
+    const nextState = engine.getState();
+    expect(nextState).not.toBe(previousState);
+    expect(nextState.papan.ubin).not.toBe(previousState.papan.ubin);
+    expect(previousState.papan.ubin[17]).toBeNull();
+    expect(nextState).toEqual(expectedState);
+  });
+
+  it.each(rejectedPlacementCases)('rejects placement for %s without mutation', (_scenario, configure) => {
+    expectRejectedWithoutMutation(placementEngine(configure));
+  });
+
+  it.each(rejectedCellIndexes)('rejects a %s without mutation', (_scenario, selIdx) => {
+    expectRejectedWithoutMutation(placementEngine(), 4, selIdx);
+  });
+
+  it('rejects a non-integer card index without mutation', () => {
+    expectRejectedWithoutMutation(placementEngine(), 4.5, 17);
+  });
+
+  it('rejects placement when every buildable cell is occupied without mutation', () => {
+    const engine = placementEngine((state) => {
+      state.milik = BUILDABLE_CELLS.map((cell) => cell + 100);
+      for (const cell of BUILDABLE_CELLS) {
+        state.papan.ubin[cell] = cell + 100;
+      }
+    });
+
+    expectRejectedWithoutMutation(engine);
   });
 });
 
