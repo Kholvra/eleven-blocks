@@ -324,6 +324,8 @@
 .meter-source > summary:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
+}
+
 .hud-preview {
   min-width: 0;
   padding: var(--space-4);
@@ -462,4 +464,298 @@
     width: 100%;
     margin-inline-end: 0;
   }
+}
+.screen[data-phase="tiket"] {
+  width: min(100%, 46rem);
+  justify-items: stretch;
+  align-content: start;
+  padding: clamp(var(--space-4), 5vw, var(--space-7));
+  gap: var(--space-4);
+}
+
+.ticket-intro {
+  max-width: 42rem;
+}
+
+.ticket-form,
+.ticket-inbound {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+}
+
+.ticket-question {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
+}
+
+.ticket-question legend {
+  max-width: 40rem;
+  padding-inline: var(--space-2);
+  color: var(--color-text);
+  font-size: var(--font-size-subheading);
+  font-weight: 700;
+  line-height: var(--line-height-heading);
+}
+
+.ticket-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  line-height: var(--line-height-body);
+  cursor: pointer;
+}
+
+.ticket-choice:has(input:checked) {
+  border: 2px solid var(--color-focus);
+  background: var(--color-page);
+  font-weight: 650;
+}
+
+.ticket-choice input {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.1rem 0 0;
+  accent-color: var(--color-focus);
+}
+
+.ticket-name {
+  display: grid;
+  max-width: 30rem;
+  gap: var(--space-2);
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+.ticket-name input,
+.ticket-url-label textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.ticket-url-label {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+.ticket-url-label textarea {
+  resize: vertical;
+  overflow-wrap: anywhere;
+  font-weight: 400;
+}
+
+.screen textarea.ticket-summary {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  overflow-wrap: anywhere;
+  resize: vertical;
+}
+
+.ticket-error,
+.ticket-status,
+.ticket-mismatch {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.ticket-status:empty {
+  display: none;
+}
+
+.ticket-error,
+.ticket-mismatch {
+  border-width: 2px;
+}
+
+.ticket-result {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
+}
+
+.ticket-inbound {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
+}
+
+.ticket-result h2,
+.ticket-inbound h2,
+.ticket-inbound h3 {
+  margin: 0;
+  color: var(--color-text);
+  line-height: var(--line-height-heading);
+}
+
+.ticket-result h2,
+.ticket-inbound h2 {
+  font-size: var(--font-size-subheading);
+}
+
+.ticket-summary,
+.ticket-answer p,
+.ticket-nickname {
+  margin: 0;
+  color: var(--color-text);
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.ticket-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.ticket-copy {
+  min-width: var(--target-min);
+}
+
+.ticket-qr {
+  display: grid;
+  place-items: start;
+  min-height: 1.5rem;
+  color: var(--color-text);
+}
+
+.ticket-qr img {
+  display: block;
+  width: min(100%, 16rem);
+  height: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.ticket-answers {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.ticket-answer {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ticket-answer h3,
+.ticket-inbound > h3 {
+  font-size: 1rem;
+}
+
+.ticket-meters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+}
+
+.ticket-meters dt {
+  color: var(--color-text-muted);
+}
+
+.ticket-meters dd {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-subheading);
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket-copy-fallback {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+}
+
+.ticket-copy-manual {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 5rem;
+  padding: var(--space-2);
+  border: 2px solid var(--color-focus);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.ticket-form :focus-visible,
+.ticket-result :focus-visible,
+.ticket-inbound :focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.ticket-form button:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+@media (max-width: 42rem) {
+  .screen[data-phase="tiket"] {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .ticket-question,
+  .ticket-result,
+  .ticket-inbound {
+    padding: var(--space-3);
+  }
+
+  .ticket-meters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ticket-controls > button {
+    flex: 1 1 100%;
+  }
+}
+.ticket-form[hidden],
+.ticket-result[hidden],
+.ticket-inbound[hidden] {
+  display: none;
 }

@@ -19,6 +19,17 @@ if (!app) {
   throw new Error('Elemen aplikasi #app tidak ditemukan.');
 }
 
+function createSessionSeed(): string {
+  const limit = Math.floor(2 ** 32 / 36 ** 6) * 36 ** 6;
+  const random = new Uint32Array(1);
+  let value = 0;
+  do {
+    crypto.getRandomValues(random);
+    value = random[0];
+  } while (value >= limit);
+  return value.toString(36).padStart(6, '0');
+}
+
 function supportsWebGL2(): boolean {
   try {
     const canvas = document.createElement('canvas');
@@ -44,7 +55,7 @@ if (!supportsWebGL2()) {
   const loadResult = saveRepository.load();
   const initialState = loadResult.status === 'valid'
     ? loadResult.state
-    : baruGame(crypto.randomUUID());
+    : baruGame(createSessionSeed());
   if (loadResult.status !== 'valid') {
     initialState.setelan.audio = loadSettings().audio;
   }
@@ -79,7 +90,7 @@ if (!supportsWebGL2()) {
     statusMessage: loadResult.status === 'invalid' ? loadResult.message : undefined,
     onStartNew() {
       saveRepository.clear();
-      const state = baruGame(crypto.randomUUID());
+      const state = baruGame(createSessionSeed());
       state.setelan.audio = loadSettings().audio;
       engine = createGameEngine(state, saveState);
       engine.dispatch({ type: 'TRANSISI_FASE', fase: 'tutorial' });
