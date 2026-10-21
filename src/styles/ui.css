@@ -22,8 +22,10 @@
   pointer-events: auto;
 }
 
-.screen[hidden] {
-  display: none;
+[hidden],
+.screen[hidden],
+.screen[data-phase][hidden] {
+  display: none !important;
 }
 
 .screen h1,
@@ -1149,9 +1151,31 @@
 }
 .ticket-form[hidden],
 .ticket-result[hidden],
-.ticket-inbound[hidden] {
-  display: none;
+.ticket-inbound[hidden],
+.teacher-receiver[hidden] {
+  display: none !important;
 }
+.ticket-back-menu {
+  display: block;
+  width: fit-content;
+  margin: var(--space-4) auto 0;
+  padding: var(--space-3) var(--space-6);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--color-focus);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-control);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.ticket-back-menu:hover {
+  background: color-mix(in srgb, var(--color-focus) 85%, #ffffff);
+  transform: translateY(-2px);
+}
+
 
 .screen[data-phase="menu"],
 .screen[data-phase="tutorial"],
