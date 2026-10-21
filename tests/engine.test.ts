@@ -1,7 +1,7 @@
 import balance from '../src/data/balance.json';
 
 import { describe, expect, it } from 'vitest';
-import { statusKartu } from '../src/game/cards';
+import { statusAksi, statusKartu } from '../src/game/cards';
 import { createGameEngine } from '../src/game/engine';
 import type { GameAction } from '../src/game/engine';
 import { BUILDABLE_CELLS } from '../src/game/board';
@@ -201,8 +201,8 @@ describe('game engine', () => {
       const engine = createGameEngine(state);
 
       enterHand(engine);
-
       expect(engine.getState().tangan).toHaveLength(ronde <= 3 ? 4 : 3);
+      expect(engine.getState().deck).toHaveLength(19 - (ronde <= 3 ? 4 : 3));
     }
   });
 
@@ -243,9 +243,15 @@ describe('game engine', () => {
   });
 
   it('charges K01 exactly once and preserves all state when unaffordable', () => {
-    const playable = readyForPlay({ tangan: [0], anggaran: balance.awal.anggaran });
+    const playable = readyForPlay({ tangan: [0], anggaran: 100 });
+    const beforeBudget = playable.getState().anggaran;
+    expect(statusKartu(playable.getState(), 0)).toEqual({ available: true, reason: null });
     expect(playable.dispatch({ type: 'MAIN_KARTU', kartuIdx: 0 })).toBe(true);
-    expect(playable.getState().anggaran).toBe(86);
+    expect(playable.getState().anggaran).toBe(beforeBudget - 14);
+    expect(playable.getState().kartuDimainkanRondeIni).toBe('K01');
+    expect(playable.getState().milik).toContain(0);
+    expect(statusKartu(playable.getState(), 0)).toEqual({ available: false, reason: 'Kartu tidak ada di tangan.' });
+
     const afterPlay = structuredClone(playable.getState());
     playable.dispatch({ type: 'PROSES_TAHAP_RONDE' });
     expect(playable.getState().anggaran).toBe(afterPlay.anggaran);
@@ -271,11 +277,9 @@ describe('game engine', () => {
     expect(invalidCell.getState()).toEqual(beforeInvalidPlay);
 
     const action = readyForPlay();
-    const beforeActionBoard = structuredClone({ ubin: action.getState().papan.ubin, milik: action.getState().milik });
     expect(action.dispatch({ type: 'MAIN_AKSI', aksiId: 'ACT01' })).toBe(true);
-    expect({ ubin: action.getState().papan.ubin, milik: action.getState().milik }).toEqual(beforeActionBoard);
+    expect(action.getState().papan).toEqual(baruGame('empty-board').papan);
   });
-
 
   it('allows ACT01 at exact cost, once per session, and only one card per round', () => {
     const engine = readyForPlay({ anggaran: 3 });
@@ -347,9 +351,6 @@ describe('game engine', () => {
     expect(engine.dispatch({ type: 'MAIN_AKSI', aksiId: 'ACT04', kartuIdx: 0 })).toBe(false);
     expect(engine.getState()).toEqual(before);
   });
-
-});
-
 function placementEngine(configure?: (state: GameState) => void) {
   const state = baruGame('policy-placement');
   state.fase = 'ronde';
@@ -368,8 +369,6 @@ function expectRejectedWithoutMutation(engine: EngineActions, kartuIdx = 4, selI
   expect(engine.getState()).toEqual(previousSnapshot);
 }
 
-
-
 const rejectedPlacementCases: Array<[string, (state: GameState) => void]> = [
   ['wrong phase', (state) => { state.fase = 'menu'; }],
   ['wrong round stage', (state) => { state.tahapRonde = 'berita'; }],
@@ -378,16 +377,6 @@ const rejectedPlacementCases: Array<[string, (state: GameState) => void]> = [
   ['card already placed', (state) => { state.milik = [4]; }],
   ['occupied cell', (state) => { state.papan.ubin[17] = 9; }],
 ];
-describe('policy placement', () => {
-  it('rejects a card already occupying another cell when ownership data omits it', () => {
-    const engine = placementEngine((state) => {
-      state.papan.ubin[18] = 4;
-      state.milik = [];
-    });
-
-    expectRejectedWithoutMutation(engine);
-  });
-});
 
 const rejectedCellIndexes: Array<[string, number]> = [
   ['non-buildable cell', 16],
@@ -396,8 +385,6 @@ const rejectedCellIndexes: Array<[string, number]> = [
   ['cell outside the tile array', 256],
   ['non-integer cell index', 17.5],
 ];
-
-describe('policy placement', () => {
   it('places a policy into one empty buildable cell without changing costs or meters', () => {
     const engine = placementEngine();
     const previousState = engine.getState();
@@ -437,6 +424,34 @@ describe('policy placement', () => {
     });
 
     expectRejectedWithoutMutation(engine);
+  });
+
+  it('timestamps and emits each successful state change without changing rejected actions', () => {
+    const state = baruGame('save-timestamps');
+    const changes: GameState[] = [];
+    let now = 42;
+    const engine = createGameEngine(state, (nextState) => changes.push(structuredClone(nextState)), () => now);
+
+    now = 43;
+    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'tutorial' })).toBe(true);
+    expect(engine.getState().waktuSimpan).toBe(43);
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toEqual(engine.getState());
+
+    now = 44;
+    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(false);
+    expect(engine.getState().waktuSimpan).toBe(43);
+    expect(changes).toHaveLength(1);
+  });
+
+  it('keeps audio preference changes in the session state', () => {
+    const initialState = baruGame('audio-preference');
+    const engine = createGameEngine(initialState, undefined, () => 99);
+
+    expect(engine.dispatch({ type: 'SETELAN_AUDIO', aktif: false })).toBe(true);
+    expect(engine.getState().setelan.audio).toBe(false);
+    expect(engine.getState().waktuSimpan).toBe(99);
+    expect(initialState.setelan.audio).toBe(true);
   });
 });
 

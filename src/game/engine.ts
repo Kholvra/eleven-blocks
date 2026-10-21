@@ -21,15 +21,27 @@ export type GameAction =
   | { type: 'SELESAI_RONDE' }
   | { type: 'TEMPATKAN_KEBIJAKAN'; kartuIdx: number; selIdx: number }
   | { type: 'MAIN_KARTU'; kartuIdx: number; selIdx?: number }
-  | { type: 'MAIN_AKSI'; aksiId: string; kartuIdx?: number };
+  | { type: 'MAIN_AKSI'; aksiId: string; kartuIdx?: number }
+  | { type: 'SETELAN_AUDIO'; aktif: boolean };
 
 export interface GameEngine {
   getState(): GameState;
   dispatch(action: GameAction): boolean;
 }
 
-export function createGameEngine(initialState: GameState): GameEngine {
+export function createGameEngine(
+  initialState: GameState,
+  onStateChange?: (state: GameState) => void,
+  now: () => number = Date.now,
+): GameEngine {
   let state = structuredClone(initialState);
+
+  function commit(nextState: GameState): boolean {
+    nextState.waktuSimpan = now();
+    state = nextState;
+    onStateChange?.(state);
+    return true;
+  }
 
   return {
     getState: () => state,
@@ -63,20 +75,22 @@ export function createGameEngine(initialState: GameState): GameEngine {
         nextState.tangan = nextState.tangan.filter((cardIndex) => cardIndex !== kartuIdx);
         nextState.milik.push(kartuIdx);
         nextState.kartuDimainkanRondeIni = POLICY_PLAY_MARKER;
-        state = nextState;
-        return true;
+        return commit(nextState);
       }
       if (action.type === 'MAIN_KARTU') {
         const nextState = playPolicy(state, action.kartuIdx, action.selIdx);
         if (nextState === null) return false;
-        state = nextState;
-        return true;
+        return commit(nextState);
       }
       if (action.type === 'MAIN_AKSI') {
         const nextState = playAction(state, action.aksiId, action.kartuIdx);
         if (nextState === null) return false;
-        state = nextState;
-        return true;
+        return commit(nextState);
+      }
+      if (action.type === 'SETELAN_AUDIO') {
+        const nextState = structuredClone(state);
+        nextState.setelan.audio = action.aktif;
+        return commit(nextState);
       }
 
       if (action.type === 'PROSES_TAHAP_RONDE') {
@@ -86,8 +100,7 @@ export function createGameEngine(initialState: GameState): GameEngine {
         const nextState = structuredClone(state);
         nextState.tahapRonde = stage;
         if (stage === 'tangan') drawHand(nextState);
-        state = nextState;
-        return true;
+        return commit(nextState);
       }
 
       if (action.type === 'SELESAI_RONDE') {
@@ -104,8 +117,7 @@ export function createGameEngine(initialState: GameState): GameEngine {
           nextState.ronde += 1;
           nextState.fase = 'ronde';
         }
-        state = nextState;
-        return true;
+        return commit(nextState);
       }
 
       if (!allowedTransitions[state.fase].includes(action.fase)) return false;
@@ -115,8 +127,7 @@ export function createGameEngine(initialState: GameState): GameEngine {
       const nextState = structuredClone(state);
       nextState.fase = action.fase;
       if (action.fase === 'ronde') nextState.tahapRonde = 'berita';
-      state = nextState;
-      return true;
+      return commit(nextState);
     },
   };
 }
