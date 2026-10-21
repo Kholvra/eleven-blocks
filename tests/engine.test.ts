@@ -351,13 +351,14 @@ describe('game engine', () => {
     expect(engine.dispatch({ type: 'MAIN_AKSI', aksiId: 'ACT04', kartuIdx: 0 })).toBe(false);
     expect(engine.getState()).toEqual(before);
   });
-function placementEngine(configure?: (state: GameState) => void) {
+function placementEngine(configure?: (state: GameState) => void, fixedNow = 1000) {
   const state = baruGame('policy-placement');
   state.fase = 'ronde';
   state.tahapRonde = 'tangan';
   state.tangan = [4, 5];
+  state.waktuSimpan = fixedNow;
   configure?.(state);
-  return createGameEngine(state);
+  return createGameEngine(state, undefined, () => fixedNow);
 }
 
 function expectRejectedWithoutMutation(engine: EngineActions, kartuIdx = 4, selIdx = 17) {
