@@ -12,8 +12,7 @@ describe('new game state', () => {
     expect(typeof state.ronde).toBe('number');
     expect(typeof state.anggaran).toBe('number');
 
-    expect(Object.keys(state.meter).sort()).toEqual(['akses', 'udara', 'warga', 'hijau'].sort());
-    expect(Object.values(state.meter).every((value) => typeof value === 'number')).toBe(true);
+    expect(state.meter).toEqual({ udara: 42, akses: 45, hijau: 38, warga: 50 });
 
     expect(state.papan).toMatchObject({ lebar: 8, tinggi: 8, selBuildable: 24 });
     expect(Array.isArray(state.papan.ubin)).toBe(true);

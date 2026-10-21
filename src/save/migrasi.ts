@@ -50,7 +50,8 @@ function stateValid(value: unknown): value is GameState {
   if (!(value.eventAktif === null || (record(value.eventAktif) && typeof value.eventAktif.id === 'string' &&
       (value.eventAktif.dipilih === null || typeof value.eventAktif.dipilih === 'string')))) return false;
   if (!value.antrian.every((entry) => record(entry) && finite(entry.ronde) && typeof entry.sumber === 'string' &&
-      efekValid(entry.efek) && (entry.catatan === undefined || typeof entry.catatan === 'string'))) return false;
+      efekValid(entry.efek) && (entry.catatan === undefined || typeof entry.catatan === 'string') &&
+      (entry.syarat === undefined || typeof entry.syarat === 'string'))) return false;
   if (!value.catatan.every((entry) => record(entry) && finite(entry.ronde) &&
       (entry.kartuIdx === null || finite(entry.kartuIdx)) && efekValid(entry.delta) && meterValid(entry.meter) && finite(entry.anggaran) &&
       (entry.eventId === undefined || typeof entry.eventId === 'string') &&
