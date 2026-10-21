@@ -12,7 +12,8 @@
         {
           "teks": "KLHK mencatat 25.540 bank sampah pada 2023.",
           "url": "https://www.antaranews.com/berita/3586587/klhk-catat-25-ribu-bank-sampah-di-indonesia",
-          "akses": "2026-10-17"
+          "akses": "2026-10-17",
+          "factIds": ["bank-sampah-nasional"]
         }
       ]
     },
@@ -28,7 +29,8 @@
         {
           "teks": "UN SDG 11 mencatat rata-rata PM2.5 tahunan kota sebesar 26,1 µg/m³ pada 2020–2023.",
           "url": "https://sdgs.un.org/goals/goal11",
-          "akses": "2026-10-17"
+          "akses": "2026-10-17",
+          "factIds": ["pm25-kota-global"]
         }
       ]
     },
@@ -153,7 +155,8 @@
         {
           "teks": "BPS mencatat sekitar 57,8% pekerja Indonesia berada di sektor informal pada Agustus 2025. Angka ini berskala nasional, bukan khusus PKL.",
           "url": "https://www.nextindonesia.id/Update/2026/02/06/228/Porsi-Pekerja-Informal-Terus-Menyusut",
-          "akses": "2026-10-17"
+          "akses": "2026-10-17",
+          "factIds": ["pekerja-informal"]
         }
       ]
     },
@@ -185,7 +188,8 @@
         {
           "teks": "Polri mencatat 24.296 kematian akibat kecelakaan lalu lintas pada 2025.",
           "url": "https://eppid.polri.go.id/news/detail/8792",
-          "akses": "2026-10-17"
+          "akses": "2026-10-17",
+          "factIds": ["kecelakaan-lalu-lintas-2025"]
         }
       ]
     },

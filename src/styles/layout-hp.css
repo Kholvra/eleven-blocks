@@ -163,6 +163,9 @@
   .results-disclaimer,
   .results-unavailable {
     padding: var(--space-3);
+  }
+}
+
 .hud {
   width: min(100%, 90rem);
   min-height: 100dvh;
@@ -422,7 +425,7 @@
 @media (max-width: 46rem) {
   .hud {
     min-height: 100dvh;
-    padding: var(--space-3);
+    padding-top: calc(var(--space-3) + var(--target-min));
     padding-bottom: calc(var(--space-3) + var(--target-min) + env(safe-area-inset-bottom));
     gap: var(--space-2);
   }

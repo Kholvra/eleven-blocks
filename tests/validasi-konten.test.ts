@@ -103,26 +103,60 @@ function eventFixtures(): EventFixtures {
   return JSON.parse(readFileSync(resolve('src/data/events.json'), 'utf8')) as EventFixtures;
 }
 
-function writeEvents(directory: string, events: EventFixtures): void {
-  writeFileSync(join(directory, 'events.json'), JSON.stringify(events));
-  writeFileSync(join(directory, 'fakta.json'), JSON.stringify({
-    fakta: [{
-      id: 'fixture',
-      target: '11.6.2',
-      teks: 'Fakta uji.',
-      konteks: 'Konteks uji.',
-      link_meter: 'udara',
-      ditampilkan: ['tooltip_meter'],
-      sumber: [{ teks: 'Rujukan uji.', url: 'https://example.org/fakta', akses: '2026-10-17' }],
-    }],
-  }));
+interface FactRecord {
+  id: string;
+  baris: number;
+  nilai: string;
+  satuan: string;
+  arti: string;
+  konteks: string;
+  penerbit: string;
+  tahun: string;
+  akses: string;
+  url: string;
+  link_pendek: string;
+  [key: string]: unknown;
 }
 
-function writeFullPackage(directory: string, events: EventFixtures): void {
+interface FactFixtures {
+  fakta: FactRecord[];
+}
+
+
+function writeEvents(directory: string, events: EventFixtures, facts?: FactFixtures): void {
+  const registry = facts ?? (JSON.parse(readFileSync(resolve('src/data/fakta.json'), 'utf8')) as FactFixtures);
+  writeFileSync(join(directory, 'events.json'), JSON.stringify(events));
+  writeFileSync(join(directory, 'fakta.json'), JSON.stringify(registry));
+}
+
+function writeFullPackage(directory: string, events: EventFixtures, facts?: FactFixtures): void {
   const fixtures = targetFixtures();
   writeTarget(directory, fixtures.cards, fixtures.actions);
-  writeEvents(directory, events);
+  writeEvents(directory, events, facts);
 }
+
+describe('validasi registry fakta REQ-016', () => {
+  it('menolak nilai yang tidak cocok dengan baris kanonis dan menyebut ID serta baris', () => {
+    const directory = dataDirectory();
+    const facts = JSON.parse(readFileSync(resolve('src/data/fakta.json'), 'utf8')) as FactFixtures;
+    facts.fakta.find(fact => fact.id === 'rth-jakarta')!.nilai = '5,31%';
+    writeFullPackage(directory, eventFixtures(), facts);
+    const result = run(directory);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('rth-jakarta');
+    expect(result.stderr).toContain('baris 17');
+    expect(result.stderr).toContain('nilai');
+  });
+  it('menolak referensi factIds yang tidak ada di registry', () => {
+    const directory = dataDirectory();
+    writeFullPackage(directory, eventFixtures());
+    writeFileSync(join(directory, 'hud.json'), JSON.stringify({ meter: { udara: { factIds: ['fakta-tidak-ada'] } } }));
+    const result = run(directory);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('fakta-tidak-ada');
+    expect(result.stderr).toContain('factIds');
+  });
+});
 
 describe('validasi jadwal event REQ-015', () => {
   it('menerima paket event dengan jadwal, ID, tipe, dan pilihan kanonis', () => {

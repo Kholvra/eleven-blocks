@@ -1,45 +1,9 @@
 {
   "meter": {
-    "udara": {
-      "label": "Udara",
-      "symbol": "◌",
-      "fact": "26,1 µg/m³",
-      "context": "Rata-rata PM2.5 kota dunia, stagnan pada 2020–2023. Fakta konteks, bukan baseline meter.",
-      "publisher": "UN SDG 11",
-      "year": "2020–2023",
-      "url": "https://sdgs.un.org/goals/goal11",
-      "akses": "Diakses 17 Okt 2026"
-    },
-    "akses": {
-      "label": "Akses & Mobilitas",
-      "symbol": "↔",
-      "fact": "61,5%",
-      "context": "Penduduk kota pada sampel 412 kota di 127 negara memiliki akses transportasi publik. Naik dari 53,2%; bukan baseline meter.",
-      "publisher": "UN SDG 11",
-      "year": "Tahun data tidak dicantumkan",
-      "url": "https://sdgs.un.org/goals/goal11",
-      "akses": "Diakses 17 Okt 2026"
-    },
-    "hijau": {
-      "label": "Ruang Hijau",
-      "symbol": "♧",
-      "fact": "5,60%",
-      "context": "Luas RTH Jakarta pada 2025 menurut definisi Pemprov DKI; berbeda dari ukuran akses ruang publik. Fakta konteks, bukan baseline meter.",
-      "publisher": "Pemprov DKI via Metrotvnews",
-      "year": "2025",
-      "url": "https://www.metrotvnews.com/read/KXyCWwmW-target-30-ruang-terbuka-hijau-jakarta-dikejar-hingga-2045",
-      "akses": "Diakses 17 Okt 2026"
-    },
-    "warga": {
-      "label": "Kesejahteraan",
-      "symbol": "⌂",
-      "fact": "57,8%",
-      "context": "Porsi pekerja informal di Indonesia pada Agustus 2025; angka nasional, bukan data per distrik atau khusus PKL. Fakta konteks, bukan baseline meter.",
-      "publisher": "BPS via NextIndonesia",
-      "year": "2025",
-      "url": "https://www.nextindonesia.id/Update/2026/02/06/228/Porsi-Pekerja-Informal-Terus-Menyusut",
-      "akses": "Diakses 17 Okt 2026"
-    }
+    "udara": { "label": "Udara", "symbol": "◌", "factIds": ["pm25-kota-global", "pm25-who-it1"] },
+    "akses": { "label": "Akses & Mobilitas", "symbol": "↔", "factIds": ["akses-transportasi-publik", "akses-ruang-publik"] },
+    "hijau": { "label": "Ruang Hijau", "symbol": "♧", "factIds": ["rth-jakarta"] },
+    "warga": { "label": "Kesejahteraan", "symbol": "⌂", "factIds": ["pekerja-informal"] }
   },
   "phase": [
     { "id": "berita", "label": "Berita Kota" },
@@ -55,7 +19,7 @@
     "deck": "Sisa kartu",
     "news": "Berita kota",
     "source": "Sumber data",
-    "disclaimer": "Meter adalah skala internal permainan, bukan ukuran kondisi kota nyata atau prediksi. Model sederhana menunjukkan arah trade-off kebijakan. Angka konteks memakai data bersumber dan memiliki keterbatasan.",
+    "disclaimer": "Meter adalah skala internal permainan; model sederhana ini bukan ukuran kondisi kota nyata atau prediksi. Fakta bersumber ditampilkan terpisah sebagai konteks, bukan dasar meter.",
     "noNews": "Belum ada berita kota.",
     "invalidState": "Status permainan tidak terbaca. Muat ulang halaman.",
     "advance": "Lanjutkan ke tahap berikutnya",
@@ -63,6 +27,7 @@
     "finish": "Selesaikan ronde 10",
     "viewReport": "Lihat laporan kota",
     "accessibleMeter": "Meter {label}: {value}",
+    "unavailableSource": "Sumber data tidak tersedia.",
     "unavailableCost": "Biaya tidak tersedia.",
     "cardUnavailable": "Kartu tidak tersedia.",
     "policy": "Kebijakan",

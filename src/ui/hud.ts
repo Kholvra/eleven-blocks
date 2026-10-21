@@ -2,10 +2,15 @@ import actions from '../data/actions.json';
 import cards from '../data/cards.json';
 import events from '../data/events.json';
 import hudCopy from '../data/hud.json';
+import factsData from '../data/fakta.json';
 import { BUILDABLE_CELLS, labelCell } from '../game/board';
 import { biayaAksi, biayaKartu, firstOpenBuildableCell, statusAksi, statusKartu } from '../game/cards';
 import type { GameAction } from '../game/engine';
 import type { Efek, GameState, KunciMeter, TahapRonde } from '../game/types';
+type FactRecord = {
+  id: string; nilai: string; satuan: string; arti: string; konteks: string;
+  penerbit: string; tahun: string; akses: string; url: string; link_pendek: string;
+};
 
 export interface HudRenderer {
   render(): void;
@@ -21,6 +26,12 @@ type MeterNode = { root: HTMLElement; value: HTMLOutputElement; bar: HTMLElement
 
 const meterOrder: readonly KunciMeter[] = ['udara', 'akses', 'hijau', 'warga'];
 const gamePhases: readonly GameState['fase'][] = ['ronde', 'event', 'ringkasan'];
+const accessDateFormatter = new Intl.DateTimeFormat('id-ID', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
 
 export function createHud(container: HTMLElement, options: HudOptions): HudRenderer {
   const hud = document.createElement('div');
@@ -71,14 +82,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     sourceToggle.textContent = hudCopy.copy.source;
     const sourcePanel = document.createElement('div');
     sourcePanel.className = 'meter-source-sheet';
-    const fact = document.createElement('p');
-    fact.textContent = `${source.fact}. ${source.context} (${source.publisher}, ${source.year}; ${source.akses}).`;
-    const link = document.createElement('a');
-    link.href = source.url;
-    link.target = '_blank';
-    link.rel = 'noreferrer';
-    link.textContent = source.publisher;
-    sourcePanel.append(fact, link);
+    renderFactCitations(sourcePanel, source.factIds);
     sourceDetails.append(sourceToggle, sourcePanel);
     chip.append(label, symbol, value, progress, delta, sourceDetails);
     meters.append(chip);
@@ -242,6 +246,21 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     },
   };
 }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function resolveFact(id: string): FactRecord | undefined {
+  if (!isRecord(factsData) || !Array.isArray(factsData.fakta)) return undefined;
+  const candidate: unknown = factsData.fakta.find((item: unknown) =>
+    isRecord(item) && item.id === id,
+  );
+  if (!isRecord(candidate)) return undefined;
+  const fields: (keyof FactRecord)[] = ['id', 'nilai', 'satuan', 'arti', 'konteks', 'penerbit', 'tahun', 'akses', 'url', 'link_pendek'];
+  if (!fields.every((field) => typeof candidate[field] === 'string' && candidate[field])) return undefined;
+  const fact = candidate as unknown as FactRecord;
+  return fact.akses === '2026-10-17' ? fact : undefined;
+}
 
 function makeStatusItem(label: string): { root: HTMLElement; value: HTMLElement } {
   const root = document.createElement('div');
@@ -301,6 +320,16 @@ function renderNews(container: HTMLElement, round: number): void {
   narrative.textContent = event.narasi;
   container.append(type, title, narrative);
   for (const source of event.sumber) {
+    if (hasFactIds(source)) {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = hudCopy.copy.source;
+      const panel = document.createElement('div');
+      renderFactCitations(panel, source.factIds);
+      details.append(summary, panel);
+      container.append(details);
+      continue;
+    }
     const link = document.createElement('a');
     link.href = source.url;
     link.target = '_blank';
@@ -308,6 +337,34 @@ function renderNews(container: HTMLElement, round: number): void {
     link.textContent = hudCopy.copy.source;
     link.setAttribute('aria-label', `${hudCopy.copy.source}: ${source.teks}`);
     container.append(link);
+  }
+}
+
+function hasFactIds(source: unknown): source is { factIds: string[] } {
+  return isRecord(source) && Array.isArray(source.factIds)
+    && source.factIds.every((id): id is string => typeof id === 'string');
+}
+
+function renderFactCitations(panel: HTMLElement, factIds: readonly string[]): void {
+  for (const id of factIds) {
+    const fact = resolveFact(id);
+    if (!fact) {
+      const unavailable = document.createElement('p');
+      unavailable.textContent = hudCopy.copy.unavailableSource;
+      panel.append(unavailable);
+      continue;
+    }
+    const citation = document.createElement('p');
+    citation.className = 'meter-citation';
+    citation.textContent = `${fact.nilai} ${fact.satuan}: ${fact.arti.replace(/[.!?]+$/, '')}. ${fact.konteks} (${fact.penerbit}, ${fact.tahun}; diakses ${accessDateFormatter.format(new Date(`${fact.akses}T00:00:00Z`))}). `;
+    const link = document.createElement('a');
+    link.href = fact.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = `Sumber: ${fact.link_pendek}`;
+    link.setAttribute('aria-label', `Buka sumber ${fact.link_pendek} untuk ${fact.arti}`);
+    citation.append(link);
+    panel.append(citation);
   }
 }
 
