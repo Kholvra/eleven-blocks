@@ -1,11 +1,51 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #f3f4e9;
-  background: #17231f;
+  color: var(--color-text);
+  background: var(--color-page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --color-surface: #22332d;
-  --color-text-muted: #bac9be;
-  --space-page: clamp(1.25rem, 5vw, 4rem);
+  --color-page: #f6ead2;
+  --color-surface: #fff8ea;
+  --color-surface-raised: #fffdf7;
+  --color-text: #2f2a26;
+  --color-text-muted: #51473f;
+  --color-border: #6b4b32;
+  --color-focus: #2e5e3e;
+  --color-meter-air: #3e86b5;
+  --color-meter-access: #f2a93b;
+  --color-meter-green: #4c9a57;
+  --color-meter-wellbeing: #d96c6c;
+  --color-access-marker: #6b4700;
+  --color-meter-track: #fffdf7;
+  --color-dialog-backdrop: rgb(47 42 38 / 48%);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-page: clamp(1rem, 4vw, 3rem);
+  --font-size-small: 0.875rem;
+  --font-size-body: 1rem;
+  --font-size-subheading: 1.5rem;
+  --font-size-heading: clamp(1.75rem, 5vw, 3rem);
+  --line-height-body: 1.55;
+  --line-height-heading: 1.12;
+  --radius-control: 0.5rem;
+  --radius-panel: 0.875rem;
+  --target-min: 2.75rem;
+}
+
+html[data-font-scale="100"] {
+  font-size: 100%;
+}
+
+html[data-font-scale="115"] {
+  font-size: 115%;
+}
+
+html[data-font-scale="130"] {
+  font-size: 130%;
 }

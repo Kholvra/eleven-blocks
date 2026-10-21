@@ -1,3 +1,5 @@
+import { mountAccessibilityControls } from './accessibilityControls';
+
 import type { GameMachine, Phase } from '../game/machine';
 
 const phaseCopy: Record<Phase, { title: string; description: string }> = {
@@ -31,6 +33,7 @@ export function createScreenRouter(root: HTMLElement, machine: GameMachine): Scr
     description.textContent = copy.description;
 
     screen.append(heading, description);
+    mountAccessibilityControls(screen);
     root.append(screen);
     screens[phase] = screen;
   }

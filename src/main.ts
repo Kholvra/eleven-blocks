@@ -1,6 +1,7 @@
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/ui.css';
+import './styles/layout-hp.css';
 import { createGameMachine } from './game/machine';
 import { createScreenRouter } from './ui/router';
 import { renderWebGLFallback } from './ui/webglFallback';
