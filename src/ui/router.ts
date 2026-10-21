@@ -1,4 +1,3 @@
-import hudCopy from '../data/hud.json';
 import { createHud, type HudRenderer } from './hud';
 import type { GameAction } from '../game/engine';
 import type { GameState } from '../game/types';
@@ -6,7 +5,7 @@ import { mountAccessibilityControls } from './accessibilityControls';
 import { createAudioController } from '../audio/audio';
 import type { GameMachine, Phase } from '../game/machine';
 import type { SkorAkhir } from '../game/report';
-
+import { createContextualTip, createTutorialGuide, createTutorialSteps, tutorialLabels } from './tutorial';
 const phaseCopy: Record<Phase, { title: string; description: string }> = {
   menu: { title: 'Eleven Blocks', description: 'Sepuluh ronde untuk satu distrik.' },
   tutorial: { title: 'Tutorial', description: 'Pengenalan permainan' },
@@ -99,16 +98,12 @@ export function createScreenRouter(
     }
 
     if (phase === 'tutorial') {
-      const begin = document.createElement('button');
-      begin.className = 'menu-action';
-      begin.type = 'button';
-      begin.textContent = hudCopy.copy.startRound;
-      begin.addEventListener('click', () => {
+      const continueToRound = (): void => {
         if (!options.dispatch({ type: 'TRANSISI_FASE', fase: 'ronde' })) return;
         machine.restore(options.getState().fase);
         render();
-      });
-      screen.append(begin);
+      };
+      screen.append(createTutorialGuide(continueToRound));
     }
     if (phase === 'menu') {
       const actions = document.createElement('div');
@@ -137,6 +132,13 @@ export function createScreenRouter(
         });
         actions.append(continueButton);
       }
+
+      const howToPlay = document.createElement('details');
+      howToPlay.className = 'menu-help tutorial-tip';
+      const helpSummary = document.createElement('summary');
+      helpSummary.textContent = tutorialLabels.howToPlay;
+      howToPlay.append(helpSummary, createTutorialSteps(), createContextualTip('menu'));
+      actions.append(howToPlay);
 
       const phaseStatus = document.createElement('p');
       phaseStatus.className = 'save-status';
@@ -204,6 +206,7 @@ export function createScreenRouter(
         const term = document.createElement('dt');
         term.textContent = label;
         const detail = document.createElement('dd');
+ 
         detail.textContent = String(value);
         item.append(term, detail);
         supporting.append(item);

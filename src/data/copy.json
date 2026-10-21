@@ -1,0 +1,34 @@
+{
+  "tutorial": {
+    "steps": [
+      {
+        "title": "Meter",
+        "text": "Udara: bersih; Akses & Mobilitas: perjalanan; Ruang Hijau: taman; Kesejahteraan: warga.",
+        "anchor": "tutorial-meters"
+      },
+      {
+        "title": "Kartu",
+        "text": "Maksimal satu kartu/ronde; kebijakan: petak kosong, aksi: tanpa petak. Biaya: poin.",
+        "anchor": "tutorial-cards"
+      },
+      {
+        "title": "Dampak",
+        "text": "Skala game 0–100; preview: sekarang, +5 ronde, akhir sesi.",
+        "anchor": "tutorial-preview"
+      }
+    ]
+  },
+  "tips": {
+    "menu": "Pilih menu untuk memulai atau melanjutkan permainan.",
+    "cards": "Mainkan maksimal satu kartu per ronde. Kebijakan memakai petak kosong yang bisa dibangun; aksi tidak memakai petak.",
+    "budget": "Biaya kartu memakai poin abstrak dalam permainan.",
+    "meters": "Empat meter permainan: Udara, Akses & Mobilitas, Ruang Hijau, dan Kesejahteraan. Skala 0–100.",
+    "preview": "Pratinjau menunjukkan Sekarang, +5 ronde, dan Akhir sesi."
+  },
+  "labels": {
+    "next": "Lanjut",
+    "skip": "Lewati",
+    "finish": "Mulai ronde 1",
+    "howToPlay": "Cara bermain"
+  }
+}
