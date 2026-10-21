@@ -140,7 +140,7 @@ export function createGameEngine(
         nextState.tahapRonde = 'berita';
         nextState.kartuDimainkanRondeIni = null;
         if (nextState.ronde === 10) {
-          nextState.fase = 'ringkasan';
+          nextState.fase = 'laporan';
         } else {
           nextState.anggaran += balance.ekonomi.pendapatan_per_ronde;
           nextState.ronde += 1;
@@ -204,20 +204,36 @@ type DelayedCardEffect = { setelahRonde: number; efek: Efek; catatan?: string; s
 function resolveRoundEffects(state: GameState): void {
   const roundStart = { ...state.meter };
   const roundDelta: Efek = {};
-  const apply = (effect: Efek) => {
+  const ownedCodes = new Set(state.milik.map((index) => cards.kebijakan[index]?.id).filter((id): id is string => id !== undefined));
+  const apply = (effect: Efek): Efek => {
     const result = applyMeterEffect(state.meter, effect);
     state.meter = result.meter;
     for (const [key, amount] of Object.entries(result.delta) as Array<[keyof Efek, number]>) {
       roundDelta[key] = (roundDelta[key] ?? 0) + amount;
     }
+    return result.delta;
+  };
+  const recordAttribution = (round: number, horizon: 'langsung' | 'tertunda', delta: Efek) => {
+    const decision = state.atribusiKeputusan?.find((entry) => entry.ronde === round);
+    if (decision === undefined) return;
+    const totals = decision[horizon];
+    for (const [key, amount] of Object.entries(delta) as Array<[keyof Efek, number]>) {
+      const total = (totals[key] ?? 0) + amount;
+      if (total === 0) delete totals[key];
+      else totals[key] = total;
+    }
+  };
+  const applyDueEffects = () => {
+    const pending = takeDueEffects(state.antrian, state.ronde);
+    state.antrian = pending.remaining;
+    for (const effect of pending.due) {
+      if (!synergySatisfied(effect.sumber, effect.syarat, ownedCodes)) continue;
+      const delta = apply(effect.efek);
+      if (effect.rondeAsal !== undefined) recordAttribution(effect.rondeAsal, 'tertunda', delta);
+    }
   };
 
-  const pending = takeDueEffects(state.antrian, state.ronde);
-  state.antrian = pending.remaining;
-  const ownedCodes = new Set(state.milik.map((index) => cards.kebijakan[index]?.id).filter((id): id is string => id !== undefined));
-  for (const effect of pending.due) {
-    if (synergySatisfied(effect.sumber, effect.syarat, ownedCodes)) apply(effect.efek);
-  }
+  applyDueEffects();
 
   const playedCode = state.kartuDimainkanRondeIni;
   if (playedCode !== null) {
@@ -225,8 +241,19 @@ function resolveRoundEffects(state: GameState): void {
     const action = actions.aksi.find((item) => item.id === playedCode);
     const effectData = policy?.efek ?? action?.efek;
     if (effectData) {
-      apply(effectData.langsung);
-      state.antrian = scheduleEffects(state.antrian, playedCode, state.ronde, effectData.tertunda as DelayedCardEffect[]);
+      if (state.atribusiKeputusan !== undefined &&
+          !state.atribusiKeputusan.some((entry) => entry.ronde === state.ronde)) {
+        state.atribusiKeputusan.push({ ronde: state.ronde, langsung: {}, tertunda: {} });
+      }
+      recordAttribution(state.ronde, 'langsung', apply(effectData.langsung));
+      state.antrian = scheduleEffects(
+        state.antrian,
+        playedCode,
+        state.ronde,
+        effectData.tertunda as DelayedCardEffect[],
+        state.ronde,
+      );
+      applyDueEffects();
     }
   }
 

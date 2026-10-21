@@ -138,3 +138,30 @@
     padding: var(--space-2);
   }
 }
+
+@media (max-width: 38rem) {
+  .screen[data-phase="laporan"] {
+    min-height: auto;
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .results-content {
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+
+  .results-rating {
+    font-size: clamp(2.25rem, 12vw, 3.25rem);
+  }
+
+  .results-supporting {
+    width: 100%;
+    gap: var(--space-3) var(--space-5);
+  }
+
+  .results-disclaimer,
+  .results-unavailable {
+    padding: var(--space-3);
+  }
+}

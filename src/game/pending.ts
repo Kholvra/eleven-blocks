@@ -16,6 +16,7 @@ export function scheduleEffects(
   source: string,
   currentRound: number,
   delayed: readonly DelayedEffect[],
+  originRound?: number,
 ): PendingEffect[] {
   return [
     ...queue,
@@ -24,6 +25,7 @@ export function scheduleEffects(
       sumber: source,
       efek: { ...efek },
       ...(catatan === undefined ? {} : { catatan }),
+      ...(originRound === undefined ? {} : { rondeAsal: originRound }),
       ...(syarat === undefined ? {} : { syarat }),
     })),
   ];

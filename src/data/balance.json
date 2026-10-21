@@ -46,5 +46,26 @@
       },
       "mitigasiPersen": 50
     }
+  },
+  "skor": {
+    "ambang_meter": {
+      "udara": 60,
+      "akses": 70,
+      "hijau": 30,
+      "warga": 70
+    },
+    "meter_kritis": 30,
+    "bintang": {
+      "5": { "t": 4, "c": 0, "miMaks": 40 },
+      "4": { "t": 3, "c": 0, "miMaks": 60 },
+      "3": { "t": 2, "c": 1 },
+      "2": { "t": 1, "c": 2 }
+    },
+    "mi": {
+      "pengali": 100,
+      "offsetPenyebut": 1,
+      "minimum": -100,
+      "maksimum": 100
+    }
   }
 }
