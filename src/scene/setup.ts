@@ -3,7 +3,8 @@ import { Color, OrthographicCamera, Scene, WebGLRenderer } from 'three';
 export function setupScene(root: HTMLElement): void {
   const renderer = new WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setClearColor(new Color('#17231f'));
+  const pageColor = getComputedStyle(document.documentElement).getPropertyValue('--color-page').trim();
+  renderer.setClearColor(new Color(pageColor));
   renderer.domElement.className = 'scene-canvas';
   renderer.domElement.setAttribute('aria-hidden', 'true');
   root.prepend(renderer.domElement);

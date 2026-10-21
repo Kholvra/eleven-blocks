@@ -1,0 +1,140 @@
+.game-layout {
+  width: min(100%, 90rem);
+  min-height: 100dvh;
+  margin-inline: auto;
+  padding: var(--space-page);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+  grid-template-areas: "board details";
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.game-board,
+.game-details,
+.game-panel {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.game-board {
+  grid-area: board;
+}
+
+.game-details {
+  grid-area: details;
+}
+
+.meter-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.meter-row {
+  display: grid;
+  grid-template-columns: minmax(5rem, auto) minmax(4rem, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-track {
+  position: relative;
+  min-width: 0;
+  height: 0.75rem;
+  overflow: visible;
+  border-radius: 999px;
+  background: var(--color-meter-track);
+}
+
+.meter-fill {
+  display: block;
+  width: var(--meter-value, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--meter-color, var(--color-meter-air));
+}
+
+[data-meter="udara"] {
+  --meter-color: var(--color-meter-air);
+}
+
+[data-meter="akses"] {
+  --meter-color: var(--color-meter-access);
+}
+
+[data-meter="rth"] {
+  --meter-color: var(--color-meter-green);
+}
+
+[data-meter="kesejahteraan"] {
+  --meter-color: var(--color-meter-wellbeing);
+}
+
+[data-meter="akses"] .meter-fill,
+.meter-bar--akses .meter-fill,
+.meter-fill[data-meter="akses"] {
+  border: 2px solid var(--color-access-marker);
+}
+
+.meter-marker--akses,
+[data-meter="akses"] .meter-marker {
+  position: absolute;
+  inset-block: -0.25rem;
+  border-inline-start: 3px solid var(--color-access-marker);
+}
+
+@media (max-width: 64rem) {
+  .game-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 46rem) {
+  .game-layout {
+    min-height: 100dvh;
+    padding: var(--space-3);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "details"
+      "board";
+    gap: var(--space-3);
+  }
+
+  .game-board,
+  .game-details,
+  .game-panel {
+    padding: var(--space-3);
+  }
+
+  .meter-row {
+    grid-template-columns: minmax(4.5rem, auto) minmax(3rem, 1fr) auto;
+    gap: var(--space-1);
+  }
+}
+
+@media (orientation: portrait) and (max-width: 46rem) {
+  .game-layout {
+    align-content: start;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 40rem) {
+  .game-layout {
+    min-height: auto;
+    padding-block: var(--space-2);
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, 18rem);
+    gap: var(--space-3);
+  }
+
+  .game-board,
+  .game-details,
+  .game-panel {
+    padding: var(--space-2);
+  }
+}

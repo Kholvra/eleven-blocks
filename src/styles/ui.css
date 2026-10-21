@@ -1,12 +1,17 @@
 .screen,
 .webgl-fallback {
-  min-height: 100vh;
+  width: min(100%, 58rem);
+  min-height: min(100vh, 42rem);
+  min-height: min(100dvh, 42rem);
+  margin-inline: auto;
   padding: var(--space-page);
   display: grid;
   align-content: center;
   justify-items: start;
-  gap: 0.75rem;
-  background: radial-gradient(ellipse at top left, #31463a, #17231f 68%);
+  gap: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
 }
 
 .screen[hidden] {
@@ -15,15 +20,123 @@
 
 .screen h1,
 .webgl-fallback h1 {
+  max-width: 18ch;
   margin: 0;
-  font-size: clamp(2rem, 7vw, 4rem);
-  line-height: 1.05;
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-heading);
+  text-wrap: balance;
 }
 
 .screen p,
 .webgl-fallback p {
-  max-width: 42rem;
+  max-width: 48rem;
   margin: 0;
   color: var(--color-text-muted);
-  line-height: 1.6;
+  line-height: var(--line-height-body);
+}
+
+.screen a,
+.webgl-fallback a {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-control);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.accessibility-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.accessibility-controls button,
+.accessibility-dialog button {
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.accessibility-controls button:hover,
+.accessibility-dialog button:hover {
+  background: var(--color-page);
+}
+
+.accessibility-dialog {
+  width: min(34rem, calc(100vw - 2 * var(--space-4)));
+  max-width: calc(100vw - 2 * var(--space-4));
+  max-height: calc(100dvh - 2 * var(--space-4));
+  margin: auto;
+  padding: var(--space-5);
+  overflow: auto;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.accessibility-dialog::backdrop {
+  background: var(--color-dialog-backdrop);
+}
+
+.accessibility-dialog h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-heading);
+}
+
+.accessibility-dialog p {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.accessibility-dialog fieldset {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.accessibility-dialog legend {
+  padding-inline: var(--space-1);
+  font-weight: 650;
+}
+
+.accessibility-dialog label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  cursor: pointer;
+}
+
+.accessibility-dialog input[type="radio"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--color-focus);
+}
+
+@media (max-width: 38rem) {
+  .screen,
+  .webgl-fallback {
+    min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: var(--space-4);
+    border-radius: 0;
+  }
+
+  .accessibility-dialog {
+    padding: var(--space-4);
+  }
 }
