@@ -3,8 +3,15 @@ import buildableCells from '../data/board.json';
 import type { GameState } from '../game/types';
 import { createBoardGrid } from './grid';
 import { cellAtPointer } from './placement';
+import { createBuildingLayer } from './buildings';
+import type { Object3D } from 'three';
 
-export function setupScene(root: HTMLElement, getState: () => GameState, onPlace?: (selIdx: number) => void): void {
+export function setupScene(
+  root: HTMLElement,
+  getState: () => GameState,
+  onPlace?: (selIdx: number) => void,
+  models: ReadonlyMap<string, Object3D> = new Map(),
+): void {
   const renderer = new WebGLRenderer({ antialias: true, alpha: false });
   renderer.domElement.className = 'scene-canvas';
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -30,6 +37,8 @@ export function setupScene(root: HTMLElement, getState: () => GameState, onPlace
 
   const scene = new Scene();
   const grid = createBoardGrid(pageColor, surfaceColor, accentColor, focusColor);
+  const buildings = createBuildingLayer(models, grid.tiles);
+  scene.add(buildings.group);
   scene.add(grid.group);
   scene.add(new AmbientLight(0xffffff, 1.8));
   const keyLight = new DirectionalLight(0xffffff, 2.2);
@@ -55,6 +64,7 @@ export function setupScene(root: HTMLElement, getState: () => GameState, onPlace
 
   function render(): void {
     const state = getState();
+    buildings.sync(state);
     grid.updateOccupancy(state.papan.ubin);
     const rowMajorCell = logicalCellIndex + 1;
     const isBuildable = Boolean(buildable[logicalCellIndex]);
