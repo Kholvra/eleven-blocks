@@ -1,5 +1,112 @@
 import balance from '../data/balance.json';
 import type { Efek, GameState, KunciMeter } from './types';
+import cards from '../data/cards.json';
+import actionsData from '../data/actions.json';
+import factsData from '../data/fakta.json';
+
+export type FaktaSumber = {
+  id: string;
+  nilai: string;
+  satuan: string;
+  penerbit: string;
+  tahun: string;
+  akses: string;
+  url: string;
+  labelUrl: string;
+  arti: string;
+  konteks: string;
+};
+
+export type KeputusanLaporan = {
+  ronde: number;
+  nama: string;
+  biaya: number;
+  delta: Efek;
+  kondisi: string | null;
+};
+
+export interface LaporanKota {
+  sections: [
+    { id: 'ringkasan'; meterAwal: Record<KunciMeter, number>; meterAkhir: Record<KunciMeter, number>; cakrawala: Array<{ id: 'sekarang' | '+5' | 'akhir'; meter: Record<KunciMeter, number> | null; disimulasikan: boolean }> },
+    { id: 'keputusan'; tersedia: boolean; item: KeputusanLaporan[]; aksiTerpilih: Array<{ nama: string; biaya: number; ronde: null }> },
+    { id: 'pihak-terdampak'; tersedia: boolean; kondisi: string[] },
+    { id: 'mi'; mi: number | null; arah: string; rumus: string; disclaimer: string },
+    { id: 'fakta'; item: FaktaSumber[] },
+    { id: 'refleksi'; prompt: string },
+  ];
+}
+
+type RawFact = Record<string, unknown>;
+function validFact(fact: unknown): fact is RawFact {
+  return record(fact) &&
+    ['id', 'nilai', 'satuan', 'penerbit', 'tahun', 'akses', 'url', 'link_pendek', 'arti', 'konteks'].every((key) =>
+      typeof fact[key] === 'string' && (fact[key] as string).trim().length > 0) &&
+    /^https?:\/\/\S+$/.test(fact.url as string) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(fact.akses as string);
+}
+
+function meterCopy(meter: Record<KunciMeter, number>): Record<KunciMeter, number> {
+  return { udara: meter.udara, akses: meter.akses, hijau: meter.hijau, warga: meter.warga };
+}
+
+export function composeLaporanKota(
+  state: GameState,
+  skor: SkorAkhir,
+  facts: unknown = factsData.fakta,
+): LaporanKota {
+  const entries = Array.isArray(state.catatan) ? state.catatan : [];
+  const journal = state.atribusiKeputusan;
+  const decisions = journal === undefined ? [] : entries.flatMap((entry) => {
+    if (!Number.isInteger(entry.ronde) || entry.kartuIdx === null) return [];
+    const card = cards.kebijakan[entry.kartuIdx];
+    const attribution = journal.find((item) => item.ronde === entry.ronde);
+    if (!card || !attribution) return [];
+    const delta: Efek = {};
+    for (const key of METER_KEYS) {
+      const amount = (attribution.langsung[key] ?? 0) + (attribution.tertunda[key] ?? 0);
+      if (amount !== 0) delta[key] = amount;
+    }
+    return [{ ronde: entry.ronde, nama: card.nama, biaya: card.biaya, delta, kondisi: card.kondisi ?? null }];
+  }).sort((a, b) => Object.values(b.delta).reduce((sum, value) => sum + Math.abs(value), 0) -
+    Object.values(a.delta).reduce((sum, value) => sum + Math.abs(value), 0) || a.ronde - b.ronde).slice(0, 3);
+  const chosenActions = [...new Set(state.aksiTerpakai ?? [])].flatMap((id) => {
+    const action = actionsData.aksi.find((item) => item.id === id);
+    return action ? [{ nama: action.nama, biaya: action.biaya, ronde: null as null }] : [];
+  });
+  const direct = journal?.reduce((sum, entry) => sum + Object.values(entry.langsung).reduce((n, amount) => n + amount, 0), 0) ?? 0;
+  const delayed = journal?.reduce((sum, entry) => sum + Object.values(entry.tertunda).reduce((n, amount) => n + amount, 0), 0) ?? 0;
+  const mi = skor.status === 'siap' ? skor.mi : null;
+  const direction = journal === undefined ? 'Arah efek langsung dan tertunda tidak tersedia karena riwayat atribusi tidak ada.' :
+    direct > delayed ? 'Efek langsung bersih lebih besar daripada efek tertunda.' :
+    direct < delayed ? 'Efek tertunda bersih lebih besar daripada efek langsung.' :
+    'Jumlah efek langsung dan tertunda seimbang.';
+  const factItems = Array.isArray(facts) ? facts.filter(validFact).map((fact) => ({
+    id: fact.id as string, nilai: fact.nilai as string, satuan: fact.satuan as string,
+    penerbit: fact.penerbit as string, tahun: fact.tahun as string, akses: fact.akses as string,
+    url: fact.url as string, labelUrl: fact.link_pendek as string,
+    arti: fact.arti as string, konteks: fact.konteks as string,
+  })) : [];
+  const conditions = [...new Set(entries.flatMap((entry) => {
+    const condition = entry.kartuIdx === null ? undefined : cards.kebijakan[entry.kartuIdx]?.kondisi;
+    return condition ? [condition] : [];
+  }))];
+  const meterStart = meterCopy(balance.awal.meter);
+  const meterEnd = meterCopy(state.meter);
+  return {
+    sections: [
+      { id: 'ringkasan', meterAwal: meterStart, meterAkhir: meterEnd, cakrawala: [
+        { id: 'sekarang', meter: meterCopy(state.meter), disimulasikan: true },
+        { id: '+5', meter: null, disimulasikan: false },
+        { id: 'akhir', meter: meterCopy(state.meter), disimulasikan: true },
+      ] },
+      { id: 'keputusan', tersedia: state.atribusiKeputusan !== undefined, item: decisions, aksiTerpilih: chosenActions },
+      { id: 'pihak-terdampak', tersedia: conditions.length > 0, kondisi: conditions },
+      { id: 'mi', mi, arah: direction, rumus: 'MI = clamp(round(100 × (Σ langsung − Σ tertunda) / (|Σ langsung| + |Σ tertunda| + 1)), −100, 100).', disclaimer: 'MI adalah heuristik internal dari efek meter simulasi; bukan ukuran perilaku, dampak nyata, atau prediksi kota.' },
+      { id: 'fakta', item: factItems },
+      { id: 'refleksi', prompt: 'Keputusan mana yang paling sulit kamu timbang, dan informasi apa yang ingin kamu pertimbangkan berikutnya?' },
+    ],
+  };
+}
 
 export type SkorAkhir =
   | { status: 'siap'; t: number; c: number; bintang: 1 | 2 | 3 | 4 | 5; mi: number }
