@@ -6,8 +6,16 @@ import { getContentHash } from '../data/contentVersion';
 import { createQrDataUrl } from '../share/qr';
 import { buildTiketText } from '../share/teks';
 import { buildTiketUrl, decodeTiket, sanitizeNickname, type TiketPayload } from '../share/tiket';
-import { createAnswerList, createMeterList, renderIncomingError } from './ticketDisplay';
+import { createAnswerList, createMeterList } from './ticketDisplay';
+import { parseTeacherInput } from './teacherInput';
 
+export interface TeacherReceiver {
+  element: HTMLElement;
+  renderDirect(fragment: string): void;
+  renderEmpty(): void;
+}
+
+const MAX_ROUTE_LENGTH = 1500;
 export interface TicketScreenOptions {
   getState(): GameState;
   dispatch(action: GameAction): boolean;
@@ -21,7 +29,7 @@ export interface TicketScreen {
   result: HTMLElement;
   inbound: HTMLElement;
   renderSaved(): void;
-  renderIncoming(): void;
+  createTeacherReceiver(): TeacherReceiver;
 }
 
 interface TicketElements {
@@ -56,7 +64,7 @@ export function createTicketScreen(options: TicketScreenOptions): TicketScreen {
     result: elements.result,
     inbound: elements.inbound,
     renderSaved: () => renderSaved(context),
-    renderIncoming: () => { void renderIncoming(context); },
+    createTeacherReceiver: () => createTeacherReceiver(context),
   };
 }
 
@@ -299,52 +307,45 @@ function showManualCopy(status: HTMLElement, label: string, value: string): void
   manual.select();
 }
 
-async function renderIncoming(context: TicketContext): Promise<void> {
-  const { elements } = context;
-  elements.inbound.replaceChildren();
-  elements.inbound.hidden = false;
-  elements.form.hidden = true;
-  elements.result.hidden = true;
-  const status = document.createElement('p');
-  status.setAttribute('role', 'status');
-  status.setAttribute('aria-live', 'polite');
-  status.textContent = 'Membuka tiket…';
-  elements.inbound.append(status);
-  try {
-    if (location.href.length > 1500) throw new Error('Tautan tiket terlalu panjang');
-    const payload = await decodeTiket(location.hash.slice('#tiket='.length));
-    renderIncomingPayload(context, status, payload);
-  } catch {
-    renderIncomingError(elements.inbound, status);
-  }
-}
 
-function renderIncomingPayload(context: TicketContext, status: HTMLElement, payload: TiketPayload): void {
-  const { elements } = context;
+function renderIncomingPayload(
+  context: TicketContext,
+  status: HTMLElement,
+  payload: TiketPayload,
+  output: HTMLElement = context.elements.inbound,
+): void {
   status.textContent = '';
   const heading = document.createElement('h2');
   heading.textContent = 'Tiket yang dibagikan';
   const answers = createAnswerList(payload);
+  const identity = document.createElement('div');
+  const seed = document.createElement('p');
+  seed.className = 'ticket-nickname';
+  seed.textContent = `Seed sesi: ${payload.s}`;
+  const contentVersion = document.createElement('p');
+  contentVersion.className = 'ticket-nickname';
+  contentVersion.textContent = `Versi konten: ${payload.k}`;
+  identity.append(seed, contentVersion);
   const metersHeading = document.createElement('h3');
   metersHeading.textContent = 'Meter permainan akhir';
   const meterList = createMeterList(payload);
-  elements.inbound.append(heading, answers, metersHeading, meterList);
+  output.append(heading, identity, answers, metersHeading, meterList);
   const meterNote = document.createElement('p');
   meterNote.className = 'ticket-intro';
   meterNote.textContent = 'Nilai memakai skala permainan, bukan ukuran kondisi kota nyata.';
-  elements.inbound.append(meterNote);
+  output.append(meterNote);
   if (payload.n) {
     const name = document.createElement('p');
     name.className = 'ticket-nickname';
     name.textContent = `Dibagikan oleh ${payload.n}`;
-    elements.inbound.insertBefore(name, answers);
+    output.insertBefore(name, answers);
   }
   if (payload.k !== getContentHash()) {
     const mismatch = document.createElement('p');
     mismatch.className = 'ticket-mismatch';
     mismatch.setAttribute('role', 'status');
     mismatch.textContent = 'Tiket ini dibuat dengan versi konten yang berbeda.';
-    elements.inbound.append(mismatch);
+    output.append(mismatch);
   }
   const summary = buildTiketText(payload);
   const summaryLabel = document.createElement('label');
@@ -355,7 +356,122 @@ function renderIncomingPayload(context: TicketContext, status: HTMLElement, payl
   summaryField.rows = 5;
   summaryField.value = summary;
   summaryLabel.append(summaryField);
-  elements.inbound.append(summaryLabel, makeCopyButton(context, 'Salin ringkasan teks', summary));
+  output.append(summaryLabel, makeCopyButton(context, 'Salin ringkasan teks', summary));
+}
+
+function createTeacherReceiver(context: TicketContext): TeacherReceiver {
+  const section = document.createElement('section');
+  section.className = 'teacher-receiver';
+  const instructions = document.createElement('p');
+  instructions.className = 'ticket-intro';
+  instructions.textContent = 'Tempel satu tautan tiket, fragmen #tiket=, atau ringkasan teks dari pengirim. Tampilan ini hanya untuk membaca.';
+  const form = document.createElement('form');
+  form.className = 'teacher-input-form';
+  const label = document.createElement('label');
+  label.htmlFor = 'teacher-ticket-input';
+  label.textContent = 'Tautan tiket atau ringkasan teks';
+  const input = document.createElement('textarea');
+  input.id = label.htmlFor;
+  input.rows = 4;
+  input.name = 'ticketInput';
+  input.autocomplete = 'off';
+  input.setAttribute('aria-describedby', 'teacher-input-help teacher-input-error');
+  const help = document.createElement('p');
+  help.id = 'teacher-input-help';
+  help.textContent = 'Ringkasan teks dapat ditempel langsung; tautan atau fragmen akan dibuka sebagai tiket.';
+  const error = document.createElement('p');
+  error.id = 'teacher-input-error';
+  error.className = 'ticket-error';
+  error.setAttribute('role', 'alert');
+  error.hidden = true;
+  const submit = document.createElement('button');
+  submit.className = 'menu-action';
+  submit.type = 'submit';
+  submit.textContent = 'Tampilkan tiket';
+  const output = document.createElement('section');
+  output.className = 'ticket-inbound';
+  output.setAttribute('aria-live', 'polite');
+  const directStatus = document.createElement('p');
+  directStatus.setAttribute('role', 'status');
+  directStatus.setAttribute('aria-live', 'polite');
+  form.append(label, input, help, error, submit);
+  section.append(instructions, form, output);
+  let request = 0;
+
+  const showError = (message: string): void => {
+    output.replaceChildren();
+    error.textContent = message;
+    error.hidden = false;
+  };
+  const submitInput = async (): Promise<void> => {
+    const currentRequest = ++request;
+    output.replaceChildren();
+    error.hidden = true;
+    const parsed = parseTeacherInput(input.value);
+    if (parsed.kind === 'invalid') {
+      const messages = {
+        empty: 'Tempel tautan tiket atau ringkasan teks terlebih dahulu.',
+        'too-long': 'Tautan terlalu panjang untuk dibuka. Minta pengirim menyalin ringkasan teks.',
+        ambiguous: 'Masukan berisi lebih dari satu tautan atau tiket. Tempel satu saja.',
+        unrecognized: 'Format tidak dikenali. Gunakan tautan atau fragmen #tiket=, atau ringkasan teks dari pengirim.',
+      } as const;
+      showError(messages[parsed.reason]);
+      return;
+    }
+    if (parsed.kind === 'text') {
+      const text = document.createElement('pre');
+      text.className = 'teacher-plain-summary';
+      text.textContent = parsed.text;
+      output.append(text);
+      return;
+    }
+    const loading = document.createElement('p');
+    loading.setAttribute('role', 'status');
+    loading.textContent = 'Membuka tiket…';
+    output.append(loading);
+    try {
+      const payload = await decodeTiket(parsed.fragment);
+      if (currentRequest !== request) return;
+      renderIncomingPayload(context, loading, payload, output);
+    } catch {
+      if (currentRequest !== request) return;
+      showError('Tiket tidak dapat dibaca. Minta pengirim menyalin ringkasan teks lalu tempelkan di sini.');
+    }
+  };
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void submitInput();
+  });
+
+  return {
+    element: section,
+    renderEmpty() {
+      request += 1;
+      input.value = '';
+      output.replaceChildren();
+      error.hidden = true;
+      directStatus.remove();
+    },
+    renderDirect(fragment: string) {
+      const currentRequest = ++request;
+      output.replaceChildren();
+      error.hidden = true;
+      directStatus.textContent = 'Membuka tiket…';
+      output.append(directStatus);
+      const normalized = parseTeacherInput(`#tiket=${fragment}`);
+      if (location.href.length > MAX_ROUTE_LENGTH || normalized.kind !== 'ticket') {
+        showError('Tautan tiket tidak dapat dibuka atau terlalu panjang. Tempel ringkasan teks yang dibagikan pengirim di atas.');
+        return;
+      }
+      void decodeTiket(normalized.fragment).then((payload) => {
+        if (currentRequest !== request) return;
+        renderIncomingPayload(context, directStatus, payload, output);
+      }).catch(() => {
+        if (currentRequest !== request) return;
+        showError('Tiket tidak dapat dibaca. Tempel ringkasan teks yang dibagikan pengirim di atas.');
+      });
+    },
+  };
 }
 
 

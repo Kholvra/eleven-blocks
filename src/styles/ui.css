@@ -301,6 +301,50 @@
   background: var(--color-surface);
   color: var(--color-text);
 }
+.teacher-receiver {
+  display: grid;
+  gap: var(--space-4);
+  width: min(100%, 42rem);
+  min-width: 0;
+}
+
+.teacher-input-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.teacher-input-form label {
+  font-weight: 650;
+}
+
+.teacher-input-form textarea,
+.teacher-plain-summary {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.teacher-input-form :is(textarea, button):focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.teacher-plain-summary {
+  margin: 0;
+}
+
+.teacher-input-form p {
+  margin: 0;
+}
 
 .results-unavailable {
   font-weight: 600;
@@ -676,6 +720,9 @@
 
 .tutorial-step p,
 .tutorial-tip p {
+  margin: 0;
+}
+
 .screen[data-phase="tiket"] {
   width: min(100%, 46rem);
   justify-items: stretch;
@@ -686,6 +733,60 @@
 
 .ticket-intro {
   max-width: 42rem;
+}
+
+.teacher-receiver {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+}
+
+.teacher-input-form {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+.teacher-input-form label {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+.teacher-input-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--target-min);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+
+.teacher-plain-summary {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  line-height: var(--line-height-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.teacher-input-form :focus-visible,
+.teacher-receiver :focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.teacher-receiver[hidden] {
+  display: none;
 }
 
 .ticket-form,
@@ -889,6 +990,10 @@
 }
 
 .tutorial-tip > summary:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
 .ticket-controls {
   display: flex;
   flex-wrap: wrap;

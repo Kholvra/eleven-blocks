@@ -55,6 +55,7 @@ export function createScreenRouter(
       render();
     },
   });
+  const teacherReceiver = ticketScreen.createTeacherReceiver();
 
   for (const [phase, copy] of Object.entries(phaseCopy) as [Phase, typeof phaseCopy[Phase]][]) {
     const screen = document.createElement('section');
@@ -119,7 +120,7 @@ export function createScreenRouter(
     }
 
     if (phase === 'tiket') {
-      screen.append(ticketScreen.intro, ticketScreen.form, ticketScreen.status, ticketScreen.result, ticketScreen.inbound);
+      screen.append(ticketScreen.intro, ticketScreen.form, ticketScreen.status, ticketScreen.result, ticketScreen.inbound, teacherReceiver.element);
     }
 
     if (phase === 'tutorial') {
@@ -201,12 +202,23 @@ export function createScreenRouter(
     const statePhase = options.getState().fase;
     if (machine.getPhase() !== statePhase) machine.restore(statePhase);
     const incoming = location.hash.startsWith('#tiket=');
-    const current = incoming ? 'tiket' : machine.getPhase();
+    const receiving = incoming || location.hash === '#guru';
+    const current = receiving ? 'tiket' : machine.getPhase();
     for (const phase of Object.keys(screens) as Phase[]) screens[phase].hidden = phase !== current;
     huds[current]?.render();
     if (current === 'laporan') renderReport(screens.laporan.querySelector('.results-content')!);
-    if (incoming) ticketScreen.renderIncoming();
-    else if (current === 'tiket') ticketScreen.renderSaved();
+    if (current === 'tiket') {
+      const teacherRoute = location.hash === '#guru' || incoming;
+      ticketScreen.intro.hidden = teacherRoute;
+      ticketScreen.form.hidden = teacherRoute;
+      ticketScreen.status.hidden = teacherRoute;
+      ticketScreen.result.hidden = teacherRoute;
+      ticketScreen.inbound.hidden = teacherRoute;
+      teacherReceiver.element.hidden = !teacherRoute;
+      if (location.hash === '#guru') teacherReceiver.renderEmpty();
+      else if (incoming) teacherReceiver.renderDirect(location.hash.slice('#tiket='.length));
+      else ticketScreen.renderSaved();
+    }
   }
   window.addEventListener('hashchange', render);
 
