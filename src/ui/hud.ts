@@ -1,4 +1,5 @@
 import actions from '../data/actions.json';
+import { createContextualTip } from './tutorial';
 import cards from '../data/cards.json';
 import events from '../data/events.json';
 import hudCopy from '../data/hud.json';
@@ -90,6 +91,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     meters.append(chip);
     meterNodes[key] = { root: chip, value, bar, delta };
   }
+  meters.append(createContextualTip('meters'));
 
   const phases = document.createElement('ol');
   phases.className = 'hud-phases';
@@ -144,7 +146,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   actionList.setAttribute('aria-label', hudCopy.copy.actions);
   const content = document.createElement('div');
   content.className = 'hud-content';
-  content.append(news, cardHeading, cardList, preview, actionHeading, actionList);
+  content.append(news, cardHeading, createContextualTip('cards'), createContextualTip('budget'), cardList, preview, actionHeading, actionList);
   const sidebar = document.createElement('aside');
   sidebar.className = 'hud-sidebar';
   sidebar.append(boardHeading, boardList);
@@ -566,7 +568,7 @@ function renderPreview(container: HTMLElement, candidate: PreviewCandidate, stat
     const exclusions = document.createElement('p');
     exclusions.className = 'hud-preview-exclusions';
     exclusions.textContent = 'Event dan pilihan pemain di ronde mendatang tidak dihitung.';
-    container.replaceChildren(heading!, error, exclusions);
+    container.replaceChildren(heading!, createContextualTip('preview'), error, exclusions);
     return;
   }
   container.hidden = false;
@@ -626,6 +628,6 @@ function renderPreview(container: HTMLElement, candidate: PreviewCandidate, stat
     }
     details.append(notes);
   }
-  container.replaceChildren(container.firstElementChild!, details);
+  container.replaceChildren(container.firstElementChild!, createContextualTip('preview'), details);
 }
 

@@ -60,8 +60,11 @@ if (!supportsWebGL2()) {
     router?.setStatus(saved ? '' : 'Simpanan perangkat tidak tersedia. Sesi ini tetap berjalan selama halaman terbuka.');
   };
   let engine = createGameEngine(initialState, saveState);
+  if (loadResult.status === 'valid' && initialState.fase === 'tutorial') {
+    engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ronde' });
+  }
+  machine = createGameMachine(engine.getState().fase);
 
-  machine = createGameMachine(initialState.fase);
   setupScene(app, () => engine.getState(), undefined, models);
 
   const completed = loadResult.status === 'valid' && loadResult.state.ronde === 10 &&
