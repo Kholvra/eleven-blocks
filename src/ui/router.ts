@@ -46,7 +46,16 @@ export function createScreenRouter(
     const heading = document.createElement('h1');
     heading.id = `screen-title-${phase}`;
     heading.textContent = copy.title;
-
+    if (phase === 'menu') {
+      const brandMark = document.createElement('span');
+      brandMark.className = 'brand-mark';
+      brandMark.setAttribute('aria-hidden', 'true');
+      for (let index = 0; index < 3; index += 1) {
+        const block = document.createElement('span');
+        brandMark.append(block);
+      }
+      heading.prepend(brandMark);
+    }
     const description = document.createElement('p');
     description.textContent = copy.description;
 

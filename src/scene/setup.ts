@@ -4,6 +4,8 @@ import type { GameState } from '../game/types';
 import { createBoardGrid } from './grid';
 import { cellAtPointer } from './placement';
 import { createBuildingLayer } from './buildings';
+import { createDistrictIdentity } from './district';
+import { createAdaptiveQuality } from './perf';
 import type { Object3D } from 'three';
 
 export function setupScene(
@@ -14,11 +16,22 @@ export function setupScene(
 ): void {
   const renderer = new WebGLRenderer({ antialias: true, alpha: false });
   renderer.domElement.className = 'scene-canvas';
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const initialPixelRatio = Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(initialPixelRatio);
   renderer.shadowMap.enabled = false;
+  const debugOutput = document.createElement('output');
+  debugOutput.className = 'scene-debug';
+  debugOutput.hidden = window.location.hash !== '#debug';
+  debugOutput.setAttribute('aria-live', 'off');
+  debugOutput.textContent = 'Mengukur kinerja papan…';
+  root.append(debugOutput);
+  const adaptiveQuality = createAdaptiveQuality(renderer, initialPixelRatio, debugOutput.hidden ? null : debugOutput);
   const pageColor = getComputedStyle(document.documentElement).getPropertyValue('--color-page').trim();
   const surfaceColor = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim();
+  const airColor = getComputedStyle(document.documentElement).getPropertyValue('--color-meter-air').trim();
+  const accessColor = getComputedStyle(document.documentElement).getPropertyValue('--color-meter-access').trim();
   const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--color-meter-green').trim();
+  const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim();
   const focusColor = getComputedStyle(document.documentElement).getPropertyValue('--color-focus').trim();
   renderer.setClearColor(new Color(pageColor));
   renderer.domElement.setAttribute('role', 'group');
@@ -36,10 +49,17 @@ export function setupScene(
   root.prepend(renderer.domElement);
 
   const scene = new Scene();
+  const district = createDistrictIdentity({
+    page: pageColor,
+    surface: surfaceColor,
+    air: airColor,
+    access: accessColor,
+    green: accentColor,
+    border: borderColor,
+  });
   const grid = createBoardGrid(pageColor, surfaceColor, accentColor, focusColor);
   const buildings = createBuildingLayer(models, grid.tiles);
-  scene.add(buildings.group);
-  scene.add(grid.group);
+  scene.add(district, buildings.group, grid.group);
   scene.add(new AmbientLight(0xffffff, 1.8));
   const keyLight = new DirectionalLight(0xffffff, 2.2);
   keyLight.position.set(-5, 10, 6);
@@ -77,17 +97,6 @@ export function setupScene(
           ? 'Gunakan tombol panah untuk berpindah, Enter atau Spasi untuk mencoba menempatkan, Escape untuk menghapus pratinjau.'
           : 'Gunakan tombol panah untuk berpindah, Escape untuk menghapus pratinjau.'),
     );
-    const bounds = renderer.domElement.getBoundingClientRect();
-    const width = Math.max(1, bounds.width);
-    const height = Math.max(1, bounds.height);
-    const aspect = width / height;
-    const halfHeight = Math.max(6, 6.4 / aspect);
-    camera.left = -halfHeight * aspect;
-    camera.right = halfHeight * aspect;
-    camera.top = halfHeight;
-    camera.bottom = -halfHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(width, height, false);
     renderer.render(scene, camera);
   }
 
@@ -170,11 +179,29 @@ export function setupScene(
   });
 
   const resizeScene = (): void => {
+    const bounds = renderer.domElement.getBoundingClientRect();
+    const width = Math.max(1, bounds.width);
+    const height = Math.max(1, bounds.height);
+    const aspect = width / height;
+    const halfHeight = Math.max(6, 6.4 / aspect);
+    camera.left = -halfHeight * aspect;
+    camera.right = halfHeight * aspect;
+    camera.top = halfHeight;
+    camera.bottom = -halfHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height, false);
     render();
     if (lastPointerEvent) updateFocus(lastPointerEvent);
   };
   const resizeObserver = new ResizeObserver(resizeScene);
   resizeObserver.observe(root);
   window.addEventListener('resize', resizeScene);
-  render();
+  resizeScene();
+
+  const animate = (now: number): void => {
+    renderer.render(scene, camera);
+    adaptiveQuality.sample(now, document.hidden);
+    requestAnimationFrame(animate);
+  };
+  requestAnimationFrame(animate);
 }

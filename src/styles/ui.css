@@ -35,6 +35,38 @@
   text-wrap: balance;
 }
 
+.screen[data-phase='menu'] h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.brand-mark {
+  display: grid;
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 2px;
+}
+
+.brand-mark span {
+  background: var(--color-meter-green);
+}
+
+.brand-mark span:first-child {
+  grid-row: 1 / span 2;
+}
+
+.brand-mark span:nth-child(2) {
+  background: var(--color-meter-air);
+}
+
+.brand-mark span:nth-child(3) {
+  background: var(--color-meter-access);
+}
+
 .screen p,
 .webgl-fallback p {
   max-width: 48rem;
