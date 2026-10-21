@@ -36,7 +36,7 @@ export interface GameState {
   kartuDimainkanRondeIni: string | null;
   milik: number[];
   perRondeAktif: never[];
-  antrian: Array<{ ronde: number; sumber: string; efek: Efek; catatan?: string }>;
+  antrian: Array<{ ronde: number; sumber: string; efek: Efek; catatan?: string; syarat?: string }>;
   eventAktif: { id: string; dipilih: string | null } | null;
   eventTerpakai: string[];
   catatan: Array<{

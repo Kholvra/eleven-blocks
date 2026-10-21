@@ -17,7 +17,7 @@ describe('save repository', () => {
     const state = baruGame('save-seed');
     state.nama = 'Kota';
     state.tiket = { teks: ['satu', 'dua', 'tiga'], url: 'https://example.test', dibuat: 123 };
-    state.antrian.push({ ronde: 2, sumber: 'kartu', efek: { udara: -2 }, catatan: 'tertunda' });
+    state.antrian.push({ ronde: 2, sumber: 'K08', efek: { udara: -2 }, catatan: 'tertunda', syarat: 'K10 ada' });
     const { storage } = memoryStorage();
     const repository = createSaveRepository(storage);
 

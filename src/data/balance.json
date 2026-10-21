@@ -37,5 +37,14 @@
       { "kode": "ACT03", "biaya": 2 },
       { "kode": "ACT04", "biaya": 4 }
     ]
+  },
+  "event": {
+    "hujanEkstrem": {
+      "kerusakan": {
+        "akses": -8,
+        "warga": -4
+      },
+      "mitigasiPersen": 50
+    }
   }
 }

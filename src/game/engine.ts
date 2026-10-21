@@ -1,10 +1,13 @@
 import balance from '../data/balance.json';
+import actions from '../data/actions.json';
+import cards from '../data/cards.json';
 import { allowedTransitions } from './machine';
 import { isBuildableCell } from './board';
 import { biayaAksi, biayaKartu, firstOpenBuildableCell, kodeKartu, statusAksi, statusKartu } from './cards';
+import { applyMeterEffect } from './meters';
+import { scheduleEffects, takeDueEffects } from './pending';
 import { drawHand, exchangePolicy, finishHand } from './deck';
-import type { GameState, Phase, TahapRonde } from './types';
-
+import type { Efek, GameState, Phase, TahapRonde } from './types';
 const nextStage: Record<TahapRonde, TahapRonde | null> = {
   berita: 'tangan',
   tangan: 'resolusi',
@@ -13,8 +16,6 @@ const nextStage: Record<TahapRonde, TahapRonde | null> = {
   transisi: null,
 };
 
-const POLICY_PLAY_MARKER = 'kebijakan';
-
 export type GameAction =
   | { type: 'TRANSISI_FASE'; fase: Phase }
   | { type: 'PROSES_TAHAP_RONDE' }
@@ -22,6 +23,7 @@ export type GameAction =
   | { type: 'TEMPATKAN_KEBIJAKAN'; kartuIdx: number; selIdx: number }
   | { type: 'MAIN_KARTU'; kartuIdx: number; selIdx?: number }
   | { type: 'MAIN_AKSI'; aksiId: string; kartuIdx?: number }
+  | { type: 'TERAPKAN_HUJAN_EKSTREM' }
   | { type: 'SETELAN_AUDIO'; aktif: boolean };
 
 export interface GameEngine {
@@ -56,7 +58,9 @@ export function createGameEngine(
         }
 
         const { kartuIdx, selIdx } = action;
-        if (!Number.isInteger(kartuIdx) || kartuIdx < 0 || !state.tangan.includes(kartuIdx) || state.milik.includes(kartuIdx) || state.papan.ubin.includes(kartuIdx)) {
+        const cardCode = kodeKartu(kartuIdx);
+        if (!Number.isInteger(kartuIdx) || kartuIdx < 0 || cardCode === undefined ||
+            !state.tangan.includes(kartuIdx) || state.milik.includes(kartuIdx) || state.papan.ubin.includes(kartuIdx)) {
           return false;
         }
         if (
@@ -74,7 +78,7 @@ export function createGameEngine(
         nextState.papan.ubin[selIdx] = kartuIdx;
         nextState.tangan = nextState.tangan.filter((cardIndex) => cardIndex !== kartuIdx);
         nextState.milik.push(kartuIdx);
-        nextState.kartuDimainkanRondeIni = POLICY_PLAY_MARKER;
+        nextState.kartuDimainkanRondeIni = cardCode;
         return commit(nextState);
       }
       if (action.type === 'MAIN_KARTU') {
@@ -100,6 +104,31 @@ export function createGameEngine(
         const nextState = structuredClone(state);
         nextState.tahapRonde = stage;
         if (stage === 'tangan') drawHand(nextState);
+        if (stage === 'resolusi') resolveRoundEffects(nextState);
+        return commit(nextState);
+      }
+
+      if (action.type === 'TERAPKAN_HUJAN_EKSTREM') {
+        if (state.fase !== 'event' || state.eventAktif?.id !== 'E01' || state.eventTerpakai.includes('E01')) return false;
+        const nextState = structuredClone(state);
+        const protectedFromRain = nextState.milik.some((index) => cards.kebijakan[index]?.id === 'K07') ||
+          nextState.kartuDimainkanRondeIni === 'ACT03';
+        const rain = balance.event.hujanEkstrem;
+        const damageFactor = protectedFromRain ? (100 - rain.mitigasiPersen) / 100 : 1;
+        const result = applyMeterEffect(nextState.meter, {
+          akses: rain.kerusakan.akses * damageFactor,
+          warga: rain.kerusakan.warga * damageFactor,
+        });
+        nextState.meter = result.meter;
+        nextState.eventTerpakai.push('E01');
+        nextState.catatan.push({
+          ronde: nextState.ronde,
+          kartuIdx: null,
+          delta: result.delta,
+          meter: { ...nextState.meter },
+          anggaran: nextState.anggaran,
+          eventId: 'E01',
+        });
         return commit(nextState);
       }
 
@@ -169,4 +198,70 @@ function playAction(state: GameState, aksiId: string, kartuIdx?: number): GameSt
   nextState.kartuDimainkanRondeIni = aksiId;
   if (aksiId === 'ACT04' && kartuIdx !== undefined && !exchangePolicy(nextState, kartuIdx)) return null;
   return nextState;
+}
+type DelayedCardEffect = { setelahRonde: number; efek: Efek; catatan?: string; syarat?: string };
+
+function resolveRoundEffects(state: GameState): void {
+  const roundStart = { ...state.meter };
+  const roundDelta: Efek = {};
+  const apply = (effect: Efek) => {
+    const result = applyMeterEffect(state.meter, effect);
+    state.meter = result.meter;
+    for (const [key, amount] of Object.entries(result.delta) as Array<[keyof Efek, number]>) {
+      roundDelta[key] = (roundDelta[key] ?? 0) + amount;
+    }
+  };
+
+  const pending = takeDueEffects(state.antrian, state.ronde);
+  state.antrian = pending.remaining;
+  const ownedCodes = new Set(state.milik.map((index) => cards.kebijakan[index]?.id).filter((id): id is string => id !== undefined));
+  for (const effect of pending.due) {
+    if (synergySatisfied(effect.sumber, effect.syarat, ownedCodes)) apply(effect.efek);
+  }
+
+  const playedCode = state.kartuDimainkanRondeIni;
+  if (playedCode !== null) {
+    const policy = cards.kebijakan.find((card) => card.id === playedCode);
+    const action = actions.aksi.find((item) => item.id === playedCode);
+    const effectData = policy?.efek ?? action?.efek;
+    if (effectData) {
+      apply(effectData.langsung);
+      state.antrian = scheduleEffects(state.antrian, playedCode, state.ronde, effectData.tertunda as DelayedCardEffect[]);
+    }
+  }
+
+  for (const key of Object.keys(roundDelta) as Array<keyof Efek>) {
+    if (roundDelta[key] === 0 || state.meter[key] === roundStart[key]) delete roundDelta[key];
+  }
+  state.catatan.push({
+    ronde: state.ronde,
+    kartuIdx: playedCode?.startsWith('K') ? Number(playedCode.slice(1)) - 1 : null,
+    delta: roundDelta,
+    meter: { ...state.meter },
+    anggaran: state.anggaran,
+  });
+}
+
+function synergySatisfied(source: string, condition: string | undefined, owned: Set<string>): boolean {
+  if (condition === undefined) return true;
+  switch (`${source}:${condition}`) {
+    case 'K03:K04 tidak ada':
+      return !owned.has('K04');
+    case 'K04:K01 sudah ada':
+      return owned.has('K01');
+    case 'K06:K07 dan K08 tidak ada':
+      return !owned.has('K07') && !owned.has('K08');
+    case 'K11:K15 dan K02 tidak ada':
+      return !owned.has('K15') && !owned.has('K02');
+    case 'K08:K10 ada':
+      return owned.has('K10');
+    case 'K14:K07 atau K08 ada':
+      return owned.has('K07') || owned.has('K08');
+    case 'K14:K07 dan K08 tidak ada':
+      return !owned.has('K07') && !owned.has('K08');
+    case 'K16:Tidak ada kios sementara dan informasi':
+      return true;
+    default:
+      return false;
+  }
 }

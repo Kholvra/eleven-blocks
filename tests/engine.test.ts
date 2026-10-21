@@ -393,7 +393,7 @@ const rejectedCellIndexes: Array<[string, number]> = [
     expectedState.papan.ubin[17] = 4;
     expectedState.tangan = [5];
     expectedState.milik = [4];
-    expectedState.kartuDimainkanRondeIni = 'kebijakan';
+    expectedState.kartuDimainkanRondeIni = 'K05';
 
     expect(engine.dispatch({ type: 'TEMPATKAN_KEBIJAKAN', kartuIdx: 4, selIdx: 17 })).toBe(true);
 
@@ -453,6 +453,211 @@ const rejectedCellIndexes: Array<[string, number]> = [
     expect(engine.getState().setelan.audio).toBe(false);
     expect(engine.getState().waktuSimpan).toBe(99);
     expect(initialState.setelan.audio).toBe(true);
+  });
+  it('applies a played policy effect during resolution and schedules delayed effects', () => {
+    const engine = readyForPlay({ tangan: [17], meter: { udara: 50, akses: 50, hijau: 50, warga: 50 } });
+
+    expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 17 })).toBe(true);
+    expect(engine.getState().meter.akses).toBe(50);
+    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+
+    expect(engine.getState().meter).toEqual({ udara: 50, akses: 57, hijau: 50, warga: 50 });
+    expect(engine.getState().antrian).toEqual([
+      {
+        ronde: 5,
+        sumber: 'K18',
+        efek: { akses: -3, udara: -2 },
+        catatan: 'Permintaan terinduksi: lebih banyak kendaraan pindah ke jalan baru.',
+      },
+    ]);
+    expect(engine.getState().catatan.at(-1)).toMatchObject({
+      ronde: 1,
+      delta: { akses: 7 },
+      meter: { udara: 50, akses: 57, hijau: 50, warga: 50 },
+      anggaran: 76,
+    });
+  });
+  it('applies direct and delayed effects from action cards', () => {
+    const engine = readyForPlay({ meter: { udara: 50, akses: 50, hijau: 50, warga: 50 } });
+
+    expect(engine.dispatch({ type: 'MAIN_AKSI', aksiId: 'ACT01' })).toBe(true);
+    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+
+    expect(engine.getState().meter.warga).toBe(52);
+    expect(engine.getState().antrian).toEqual([
+      { ronde: 3, sumber: 'ACT01', efek: { warga: 1 }, catatan: 'Efek permainan: manfaat dialog berlanjut.' },
+    ]);
+  });
+
+  it('resolves K08 delayed synergy once when K10 is on the board at target time', () => {
+    const state = baruGame('k08-k10-synergy');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.tangan = [7];
+    state.milik = [9];
+    const engine = createGameEngine(state);
+    expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 7 })).toBe(true);
+    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+    expect(engine.getState().meter.hijau).toBe(40);
+
+    const target = structuredClone(engine.getState());
+    target.ronde = 2;
+    target.tahapRonde = 'tangan';
+    target.kartuDimainkanRondeIni = null;
+    const targetEngine = createGameEngine(target);
+    expect(targetEngine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(targetEngine.getState().meter.hijau).toBe(42);
+    expect(targetEngine.getState().antrian).toEqual([]);
+
+    const nextRound = structuredClone(targetEngine.getState());
+    nextRound.ronde = 3;
+    nextRound.tahapRonde = 'tangan';
+    const nextEngine = createGameEngine(nextRound);
+    expect(nextEngine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(nextEngine.getState().meter.hijau).toBe(42);
+  });
+
+  it('clamps each queued effect before applying the next one', () => {
+    const state = baruGame('sequential-meter-clamp');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.meter.udara = 99;
+    state.antrian = [
+      { ronde: 1, sumber: 'first', efek: { udara: 3 } },
+      { ronde: 1, sumber: 'second', efek: { udara: -3 } },
+    ];
+    const engine = createGameEngine(state);
+
+    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(engine.getState().meter.udara).toBe(97);
+    expect(engine.getState().catatan.at(-1)?.delta).toEqual({ udara: -2 });
+    expect(engine.getState().antrian).toEqual([]);
+  });
+
+  it('caps K18 delayed effects at round 10 and removes them after resolution', () => {
+    const state = baruGame('k18-final-round');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.ronde = 7;
+    state.tangan = [17];
+    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
+    const engine = createGameEngine(state);
+    expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 17 })).toBe(true);
+    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+    expect(engine.getState().antrian[0].ronde).toBe(10);
+
+    const final = structuredClone(engine.getState());
+    final.ronde = 10;
+    final.tahapRonde = 'tangan';
+    final.kartuDimainkanRondeIni = null;
+    const finalEngine = createGameEngine(final);
+    expect(finalEngine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(finalEngine.getState().meter).toEqual({ udara: 48, akses: 54, hijau: 50, warga: 50 });
+    expect(finalEngine.getState().antrian).toEqual([]);
+  });
+  it('resolves K19 delayed penalties at the scheduled round', () => {
+    const state = baruGame('k19-trap-effect');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.tangan = [18];
+    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
+    const engine = createGameEngine(state);
+    expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 18 })).toBe(true);
+    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+    expect(engine.getState().meter.warga).toBe(54);
+    expect(engine.getState().antrian[0]).toMatchObject({
+      ronde: 5,
+      sumber: 'K19',
+      efek: { udara: -4, akses: -3 },
+    });
+
+    const target = structuredClone(engine.getState());
+    target.ronde = 5;
+    target.tahapRonde = 'tangan';
+    target.kartuDimainkanRondeIni = null;
+    const targetEngine = createGameEngine(target);
+    expect(targetEngine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(targetEngine.getState().meter).toEqual({ udara: 46, akses: 47, hijau: 50, warga: 54 });
+    expect(targetEngine.getState().antrian).toEqual([]);
+  });
+
+  it.each([
+    ['K03 without K04', 'K03', 'K04 tidak ada', [], { akses: -2 }, 48, 50],
+    ['K03 with K04', 'K03', 'K04 tidak ada', [3], { akses: -2 }, 50, 50],
+    ['K04 with K01', 'K04', 'K01 sudah ada', [0], { akses: 1 }, 51, 50],
+    ['K04 without K01', 'K04', 'K01 sudah ada', [], { akses: 1 }, 50, 50],
+    ['K06 without K07 or K08', 'K06', 'K07 dan K08 tidak ada', [], { hijau: -1 }, 50, 49],
+    ['K06 with K08', 'K06', 'K07 dan K08 tidak ada', [7], { hijau: -1 }, 50, 50],
+    ['K08 with K10', 'K08', 'K10 ada', [9], { hijau: 1 }, 50, 51],
+    ['K08 without K10', 'K08', 'K10 ada', [], { hijau: 1 }, 50, 50],
+    ['K14 with K07', 'K14', 'K07 atau K08 ada', [6], { hijau: 1 }, 50, 51],
+    ['K14 without K07 or K08', 'K14', 'K07 dan K08 tidak ada', [], { hijau: -1 }, 50, 49],
+  ] as const)('evaluates delayed synergy at resolution time: %s', (_scenario, source, syarat, owned, effect, expectedAccess, expectedGreen) => {
+    const state = baruGame(`synergy-${source}-${_scenario}`);
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.ronde = 5;
+    state.milik = [...owned];
+    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
+    state.antrian = [{ ronde: 5, sumber: source, efek: effect, syarat }];
+    const engine = createGameEngine(state);
+
+    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(engine.getState().meter.akses).toBe(expectedAccess);
+    expect(engine.getState().meter.hijau).toBe(expectedGreen);
+    expect(engine.getState().antrian).toEqual([]);
+  });
+  it('applies K16 delayed income loss when no temporary kiosk and information are modeled', () => {
+    const state = baruGame('k16-unmitigated-condition');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.ronde = 5;
+    state.antrian = [{
+      ronde: 5,
+      sumber: 'K16',
+      efek: { warga: -1 },
+      syarat: 'Tidak ada kios sementara dan informasi',
+    }];
+    const engine = createGameEngine(state);
+
+    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(engine.getState().meter.warga).toBe(49);
+    expect(engine.getState().antrian).toEqual([]);
+  });
+
+
+  it.each([
+    ['without protection', [], null, [], { udara: 50, akses: 42, hijau: 50, warga: 46 }],
+    ['previously used ACT03', [], null, ['ACT03'], { udara: 50, akses: 42, hijau: 50, warga: 46 }],
+    ['ACT03 this round', [], 'ACT03', ['ACT03'], { udara: 50, akses: 46, hijau: 50, warga: 48 }],
+    ['K07 protection', [6], null, [], { udara: 50, akses: 46, hijau: 50, warga: 48 }],
+    ['K07 plus ACT03', [6], 'ACT03', ['ACT03'], { udara: 50, akses: 46, hijau: 50, warga: 48 }],
+  ] as const)('applies extreme-rain damage once with %s', (_scenario, owned, playedCode, usedActions, expectedMeters) => {
+    const state = baruGame(`extreme-rain-${_scenario}`);
+    state.fase = 'event';
+    state.eventAktif = { id: 'E01', dipilih: null };
+    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
+    state.milik = [...owned];
+    state.kartuDimainkanRondeIni = playedCode;
+    state.aksiTerpakai = [...usedActions];
+    const engine = createGameEngine(state);
+
+    expect(engine.dispatch({ type: 'TERAPKAN_HUJAN_EKSTREM' })).toBe(true);
+    expect(engine.getState().meter).toEqual(expectedMeters);
+    const resolved = structuredClone(engine.getState());
+    expect(engine.dispatch({ type: 'TERAPKAN_HUJAN_EKSTREM' })).toBe(false);
+    expect(engine.getState()).toEqual(resolved);
+  });
+
+  it('leaves meters unchanged across rounds without discrete effects', () => {
+    const engine = createGameEngine(baruGame('no-passive-meter-drift'));
+    const initialMeters = structuredClone(engine.getState().meter);
+    enterRound(engine);
+
+    for (let round = 1; round <= 10; round += 1) finishRound(engine);
+
+    expect(engine.getState().meter).toEqual(initialMeters);
+    expect(engine.getState().antrian).toEqual([]);
   });
 });
 
