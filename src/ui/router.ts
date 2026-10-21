@@ -1,3 +1,4 @@
+import hudCopy from '../data/hud.json';
 import { createHud, type HudRenderer } from './hud';
 import type { GameAction } from '../game/engine';
 import type { GameState } from '../game/types';
@@ -5,6 +6,7 @@ import { mountAccessibilityControls } from './accessibilityControls';
 import { createAudioController } from '../audio/audio';
 import type { GameMachine, Phase } from '../game/machine';
 import { composeLaporanKota, type SkorAkhir } from '../game/report';
+import { createTicketScreen } from './ticketScreen';
 import { createContextualTip, createTutorialGuide, createTutorialSteps, tutorialLabels } from './tutorial';
 const phaseCopy: Record<Phase, { title: string; description: string }> = {
   menu: { title: 'Eleven Blocks', description: 'Sepuluh ronde untuk satu distrik.' },
@@ -45,6 +47,14 @@ export function createScreenRouter(
   const soundToggles: HTMLButtonElement[] = [];
   let statusMessage = options.statusMessage ?? '';
   const statusTexts: HTMLElement[] = [];
+  const ticketScreen = createTicketScreen({
+    getState: options.getState,
+    dispatch: options.dispatch,
+    onTicketSaved() {
+      machine.restore(options.getState().fase);
+      render();
+    },
+  });
 
   for (const [phase, copy] of Object.entries(phaseCopy) as [Phase, typeof phaseCopy[Phase]][]) {
     const screen = document.createElement('section');
@@ -95,6 +105,21 @@ export function createScreenRouter(
       resultHeading.textContent = 'Hasil sesi';
       results.append(resultHeading);
       screen.append(results);
+      const ticketStart = document.createElement('button');
+      ticketStart.className = 'menu-action ticket-start';
+      ticketStart.type = 'button';
+      ticketStart.textContent = 'Isi Tiket Keluar';
+      ticketStart.addEventListener('click', () => {
+        if (!options.dispatch({ type: 'TRANSISI_FASE', fase: 'tiket' })) return;
+        machine.restore(options.getState().fase);
+        render();
+      });
+      screen.append(ticketStart);
+
+    }
+
+    if (phase === 'tiket') {
+      screen.append(ticketScreen.intro, ticketScreen.form, ticketScreen.status, ticketScreen.result, ticketScreen.inbound);
     }
 
     if (phase === 'tutorial') {
@@ -175,13 +200,15 @@ export function createScreenRouter(
   function render(): void {
     const statePhase = options.getState().fase;
     if (machine.getPhase() !== statePhase) machine.restore(statePhase);
-    const current = machine.getPhase();
-    for (const phase of Object.keys(screens) as Phase[]) {
-      screens[phase].hidden = phase !== current;
-    }
+    const incoming = location.hash.startsWith('#tiket=');
+    const current = incoming ? 'tiket' : machine.getPhase();
+    for (const phase of Object.keys(screens) as Phase[]) screens[phase].hidden = phase !== current;
     huds[current]?.render();
     if (current === 'laporan') renderReport(screens.laporan.querySelector('.results-content')!);
+    if (incoming) ticketScreen.renderIncoming();
+    else if (current === 'tiket') ticketScreen.renderSaved();
   }
+  window.addEventListener('hashchange', render);
 
   function renderReport(results: HTMLElement): void {
     const resultHeading = results.querySelector('#results-heading');

@@ -152,6 +152,40 @@ describe('game engine', () => {
     expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'tiket' })).toBe(true);
     expect(engine.getState().fase).toBe('tiket');
   });
+  it('stores a reflection ticket only in the ticket phase', () => {
+    const state = baruGame('ticket');
+    state.ronde = 10;
+    state.fase = 'tiket';
+    const engine = createGameEngine(state, undefined, () => 456);
+    const ticket = {
+      type: 'SIMPAN_TIKET',
+      teks: ['Pilihan utama', 'Trade-off', 'Perubahan berikutnya'] as [string, string, string],
+      url: 'https://example.test/#tiket=0.payload',
+      nama: 'Rani',
+    } as const;
+
+    expect(engine.dispatch(ticket)).toBe(true);
+    expect(engine.getState().tiket).toEqual({
+      teks: ['Pilihan utama', 'Trade-off', 'Perubahan berikutnya'],
+      url: 'https://example.test/#tiket=0.payload',
+      dibuat: 456,
+    });
+    expect(engine.getState().nama).toBe('Rani');
+
+    engine.dispatch({ type: 'TRANSISI_FASE', fase: 'menu' });
+    const saved = structuredClone(engine.getState());
+    expect(engine.dispatch(ticket)).toBe(false);
+    expect(engine.getState()).toEqual(saved);
+
+    const overflowState = { ...state, fase: 'tiket' as const };
+    const overflowEngine = createGameEngine(overflowState);
+    expect(overflowEngine.dispatch({
+      ...ticket,
+      url: `https://example.test/${'x'.repeat(1500)}`,
+    })).toBe(false);
+    expect(overflowEngine.getState().tiket).toBeUndefined();
+  });
+
 
   it('enforces guards between ringkasan, event, and round progression', () => {
     const state = baruGame('mid-rounds');
