@@ -27,3 +27,23 @@
   color: var(--color-text-muted);
   line-height: 1.6;
 }
+.sound-toggle {
+  min-height: 44px;
+  max-width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--color-text-muted);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  color: inherit;
+  cursor: pointer;
+}
+
+.sound-toggle:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+.sound-toggle:active {
+  background: var(--color-surface);
+}
