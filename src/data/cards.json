@@ -1,0 +1,374 @@
+{
+  "_meta": {
+    "mode": "target"
+  },
+  "kebijakan": [
+    {
+      "id": "K01",
+      "idx": 1,
+      "nama": "Jalur Sepeda Terproteksi",
+      "kategori": "transport",
+      "biaya": 14,
+      "deskripsi": "Kalau jalurnya dipisah fisik, orang berani bersepeda. Kalau cuma cat di aspal, mobil tetap parkir di situ.",
+      "kenapa_penting": "Jalur yang dipisah fisik memberi rasa aman bagi pesepeda.",
+      "efek": {
+        "langsung": { "udara": 2, "akses": 4, "hijau": 1, "warga": 1 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "akses": 3, "udara": 1 }, "catatan": "kebiasaan baru terbentuk" }
+        ]
+      },
+      "kondisi": "Makan 1 lajur parkir; tanpa Dialog Warga, pemilik mobil protes (warga −1 sekali).",
+      "sumber": [
+        { "teks": "94% pesepeda merasa lebih percaya diri di jalur terproteksi (ITDP Indonesia, November 2023).", "url": "https://itdp-indonesia.org/publication/catatan-teknis-keberlanjutan-jalur-sepeda-jakarta/", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K02",
+      "idx": 2,
+      "nama": "Trotoar Lebar + Ramp + Lampu",
+      "kategori": "transport",
+      "biaya": 12,
+      "deskripsi": "Trotoar yang nyaman itu fasilitas umum paling murah meriah: bikin yang jalan kaki merasa dianggap ada.",
+      "kenapa_penting": "Trotoar yang aman dan aksesibel membantu pejalan kaki bergerak dengan lebih nyaman.",
+      "efek": {
+        "langsung": { "udara": 1, "akses": 5, "hijau": 0, "warga": 2 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "akses": 2, "warga": 1 }, "catatan": "toko pinggir jalan hidup" }
+        ]
+      },
+      "kondisi": "PKL bisa terusir kalau belum ada kios pengganti (warga −2 sekali; netral jika K15 sudah ada).",
+      "sumber": [
+        { "teks": "Trotoar yang aman dan aksesibel membantu pejalan kaki bergerak dengan lebih nyaman.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K03",
+      "idx": 3,
+      "nama": "Ganjil-Genap Jam Sibuk",
+      "kategori": "transport",
+      "biaya": 6,
+      "deskripsi": "Mengatur kendaraan berdasarkan nomor pelat pada ruas dan waktu tertentu.",
+      "kenapa_penting": "Ganjil-genap mengatur lalu lintas pada ruas tertentu; tanpa integrasi angkutan umum, pengaturan perjalanan tetap menjadi tantangan.",
+      "efek": {
+        "langsung": { "udara": 3, "akses": 3, "hijau": 0, "warga": -1 },
+        "tertunda": [
+          { "setelahRonde": 3, "efek": { "udara": 1 }, "catatan": "Efek dasar ganjil-genap." },
+          { "setelahRonde": 3, "efek": { "akses": -2 }, "catatan": "Macet pindah jalur.", "syarat": "K04 tidak ada" }
+        ]
+      },
+      "kondisi": "Warga tanpa alternatif kendaraan kena duluan; butuh pengecualian (ojol, disabilitas, dinas).",
+      "sumber": [
+        { "teks": "Ganjil-genap mengatur lalu lintas pada ruas tertentu; tanpa integrasi angkutan umum, pengaturan perjalanan tetap menjadi tantangan.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K04",
+      "idx": 4,
+      "nama": "Bus Listrik + Halte Aman",
+      "kategori": "transport",
+      "biaya": 22,
+      "deskripsi": "Bus listrik mengangkut penumpang tanpa emisi knalpot di jalan.",
+      "kenapa_penting": "Transjakarta mengoperasikan 470 bus listrik pada 2025 (Transjakarta, 2025).",
+      "efek": {
+        "langsung": { "udara": 3, "akses": 7, "hijau": 0, "warga": 2 },
+        "tertunda": [
+          { "setelahRonde": 3, "efek": { "akses": 3, "udara": 1 }, "catatan": "Efek dasar bus listrik." },
+          { "setelahRonde": 3, "efek": { "akses": 1 }, "catatan": "Bonus akses bike-to-halte.", "syarat": "K01 sudah ada" }
+        ]
+      },
+      "kondisi": "Biaya pengadaan besar; kalau K03 jalan tapi bus telat, warga marah (warga −1 sekali di event).",
+      "sumber": [
+        { "teks": "Transjakarta mengoperasikan 470 bus listrik pada 2025.", "url": "https://transjakarta.co.id/berita/transjakarta-cetak-rekor-layani-413-juta-pelanggan-di-2025-dengan-efisiensi-subsidi-yang-signifikan", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K05",
+      "idx": 5,
+      "nama": "Zona Selamat Sekolah (30 km/jam)",
+      "kategori": "transport",
+      "biaya": 8,
+      "deskripsi": "Beda 30 dan 50 km/jam bisa beda antara ‘kaget’ dan ‘selamat’. Anak yang aman jalan kaki = satu perjalanan motor yang tidak dinyalakan.",
+      "kenapa_penting": "Zona selamat sekolah memberi perhatian khusus pada keselamatan anak dan pengguna jalan di sekitar sekolah.",
+      "efek": {
+        "langsung": { "udara": 1, "akses": 2, "hijau": 0, "warga": 3 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "warga": 2 }, "catatan": "orang tua mulai izinkan anak jalan kaki" }
+        ]
+      },
+      "kondisi": "Pengemudi mengeluh lambat; butuh marka + konsistensi petugas.",
+      "sumber": [
+        { "teks": "Zona selamat sekolah memberi perhatian khusus pada keselamatan anak dan pengguna jalan di sekitar sekolah.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K06",
+      "idx": 6,
+      "nama": "Kawasan 15 Menit (sekolah & layanan dekat rumah)",
+      "kategori": "tata-guna-lahan",
+      "biaya": 16,
+      "deskripsi": "Mendekatkan sekolah dan layanan pada rumah.",
+      "kenapa_penting": "Kawasan 15 Menit mendorong kebutuhan harian agar lebih mudah dijangkau dengan berjalan kaki.",
+      "efek": {
+        "langsung": { "udara": 2, "akses": 5, "hijau": 1, "warga": 2 },
+        "tertunda": [
+          { "setelahRonde": 3, "efek": { "akses": 2, "warga": 2 }, "catatan": "Efek dasar kawasan 15 menit." },
+          { "setelahRonde": 3, "efek": { "hijau": -1 }, "catatan": "Kepadatan bikin genangan.", "syarat": "K07 dan K08 tidak ada" }
+        ]
+      },
+      "kondisi": "Harga tanah naik, warga lama berisiko tergusur; mitigasi: K14 + ACT01.",
+      "sumber": [
+        { "teks": "Kawasan 15 Menit mendorong kebutuhan harian agar lebih mudah dijangkau dengan berjalan kaki.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K07",
+      "idx": 7,
+      "nama": "Normalisasi Sungai + Saringan Sampah",
+      "kategori": "air",
+      "biaya": 20,
+      "deskripsi": "Menata sungai dan menyaring sampah untuk mengelola risiko banjir di kawasan.",
+      "kenapa_penting": "Banjir merupakan salah satu risiko yang perlu dipertimbangkan dalam pengelolaan kawasan dan sungai.",
+      "efek": {
+        "langsung": { "udara": 1, "akses": 1, "hijau": 2, "warga": 3 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "warga": 1 }, "catatan": "Saat event hujan ekstrem, kerusakan dipotong 50%." }
+        ]
+      },
+      "kondisi": "Pekerjaan berat: debu & jalan kotor sementara; relokasi bantaran harus sopan atau warga −1.",
+      "sumber": [
+        { "teks": "Banjir merupakan salah satu risiko yang perlu dipertimbangkan dalam pengelolaan kawasan dan sungai.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K08",
+      "idx": 8,
+      "nama": "Biopori & Sumur Resapan per Gang",
+      "kategori": "air",
+      "biaya": 10,
+      "deskripsi": "Lubang kecil di tiap gang memberi air hujan tempat pulang, biar nggak nginep di depan pintu rumah.",
+      "kenapa_penting": "Biopori dan sumur resapan membantu air hujan meresap ke dalam tanah.",
+      "efek": {
+        "langsung": { "udara": 1, "akses": 0, "hijau": 2, "warga": 1 },
+        "tertunda": [
+          { "setelahRonde": 1, "efek": { "hijau": 1 }, "catatan": "Efek dasar biopori." },
+          { "setelahRonde": 1, "efek": { "hijau": 1 }, "catatan": "Sinergi K10.", "syarat": "K10 ada" }
+        ]
+      },
+      "kondisi": "Butuh dirawat; kalau telantar jadi sarang jentik (warga −1).",
+      "sumber": [
+        { "teks": "Biopori dan sumur resapan membantu air hujan meresap ke dalam tanah.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K09",
+      "idx": 9,
+      "nama": "Bank Sampah & TPS Terpilah",
+      "kategori": "sampah",
+      "biaya": 12,
+      "deskripsi": "Dipilah di rumah artinya truk tidak jalan jauh, TPS tidak meluap, dan nasabah bawa pulang uang.",
+      "kenapa_penting": "KLHK mencatat 25.540 bank sampah pada 2023 (KLHK, 2023).",
+      "efek": {
+        "langsung": { "udara": 2, "akses": 0, "hijau": 2, "warga": 2 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "udara": 1, "hijau": 1 }, "catatan": "Memadamkan event ‘bau TPS’." }
+        ]
+      },
+      "kondisi": "Kalau dibangun tanpa penggerak warga, mangkrak (‘ah, nanti juga numpuk’).",
+      "sumber": [
+        { "teks": "KLHK mencatat 25.540 bank sampah pada 2023.", "url": "https://www.antaranews.com/berita/3586587/klhk-catat-25-ribu-bank-sampah-di-indonesia", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K10",
+      "idx": 10,
+      "nama": "Audit & Perbaikan Pipa + Kampanye Hemat Air",
+      "kategori": "air",
+      "biaya": 14,
+      "deskripsi": "Di banyak kota Indonesia, banyak air bersih hilang bocor sebelum sampai ke keran. Nambal pipa lebih murah daripada cari sumber baru.",
+      "kenapa_penting": "Banyak air bersih hilang sebelum sampai ke keran.",
+      "efek": {
+        "langsung": { "udara": 0, "akses": 0, "hijau": 3, "warga": 2 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "hijau": 1, "warga": 1 }, "catatan": "Memotong dampak event kemarau." }
+        ]
+      },
+      "kondisi": "Ada galian jalan sementara (akses −1 sekali); angka bocor mesti diawasi supaya tidak jadi legenda.",
+      "sumber": [
+        { "teks": "Banyak air bersih hilang sebelum sampai ke keran.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K11",
+      "idx": 11,
+      "nama": "Taman Kampung (RTH mikro tiap RW)",
+      "kategori": "hijau",
+      "biaya": 8,
+      "deskripsi": "Taman di antara gang adalah ruang bernapas kampung: tempat balita belajar soal pohon, dan air hujan belajar masuk tanah.",
+      "kenapa_penting": "Taman kampung menyediakan ruang resapan dan membantu menjaga iklim mikro setempat.",
+      "efek": {
+        "langsung": { "udara": 1, "akses": 0, "hijau": 4, "warga": 2 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "hijau": 1, "warga": 1 }, "catatan": "Tanpa perawatan taman dapat menjadi parkir liar." },
+          { "setelahRonde": 4, "efek": { "hijau": -2 }, "catatan": "Tanpa kebijakan pemeliharaan, taman jadi parkir liar.", "syarat": "K15 dan K02 tidak ada" }
+        ]
+      },
+      "sumber": [
+        { "teks": "Taman kampung menyediakan ruang resapan dan membantu menjaga iklim mikro setempat.", "url": "https://journal.ugm.ac.id/v3/jik/article/view/2345/1469", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K12",
+      "idx": 12,
+      "nama": "Hutan Kota & Sabuk Bakau",
+      "kategori": "hijau",
+      "biaya": 24,
+      "deskripsi": "Pohon besar itu AC dan payung kota. Manfaatnya baru terasa belasan tahun; keputusan yang hasilnya dinikmati orang lain, itu definisi pemimpin.",
+      "kenapa_penting": "Akses ruang terbuka publik turun dari 48,0% menjadi 45,9% (UN SDG 11, 2020–2025).",
+      "efek": {
+        "langsung": { "udara": 3, "akses": 0, "hijau": 8, "warga": 1 },
+        "tertunda": [
+          { "setelahRonde": 3, "efek": { "udara": 2, "hijau": 2 }, "catatan": "pohon makin rindang; bakau menahan rob" }
+        ]
+      },
+      "kondisi": "Butuh lahan besar; hasil lama kelihatan. Sabar itu bagian dari desain.",
+      "sumber": [
+        { "teks": "Akses ruang terbuka publik turun dari 48,0% menjadi 45,9% (UN SDG 11, 2020–2025).", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K13",
+      "idx": 13,
+      "nama": "Panel Surya Atap Fasilitas Umum",
+      "kategori": "energi",
+      "biaya": 18,
+      "deskripsi": "Atap fasilitas umum dapat menjadi pembangkit mini.",
+      "kenapa_penting": "Pemanfaatan energi surya pada fasilitas publik dapat menjadi salah satu pilihan pengembangan energi.",
+      "efek": {
+        "langsung": { "udara": 3, "akses": 0, "hijau": 0, "warga": 1 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "udara": 2, "warga": 1 }, "catatan": "Cuaca mendung mengurangi produksi panel. Izin dan pemeliharaan perlu diperhitungkan." }
+        ]
+      },
+      "sumber": [
+        { "teks": "Pemanfaatan energi surya pada fasilitas publik dapat menjadi salah satu pilihan pengembangan energi.", "url": "https://www.unep.org/explore-topics/resource-efficiency/what-we-do/cities-and-climate-change", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K14",
+      "idx": 14,
+      "nama": "Rusun Dekat Transit (Rusunawa)",
+      "kategori": "permukiman",
+      "biaya": 26,
+      "deskripsi": "Rumah layak dekat halte = keluarga hemat ongkos & waktu, dan kota tidak perlu melebar makan lahan hijau.",
+      "kenapa_penting": "Ketersediaan hunian layak dan terjangkau tetap menjadi tantangan bagi warga kota. Sekitar 1,16 miliar warga kota tinggal di kawasan kumuh (SDG 11.1.1).",
+      "efek": {
+        "langsung": { "udara": 0, "akses": 4, "hijau": 1, "warga": 4 },
+        "tertunda": [
+          { "setelahRonde": 3, "efek": { "akses": 2, "warga": 2 }, "catatan": "Efek dasar rusun dekat transit." },
+          { "setelahRonde": 3, "efek": { "hijau": 1 }, "catatan": "Dukungan kondisi hijau.", "syarat": "K07 atau K08 ada" },
+          { "setelahRonde": 3, "efek": { "hijau": -1 }, "catatan": "Kondisi hijau memburuk.", "syarat": "K07 dan K08 tidak ada" }
+        ]
+      },
+      "kondisi": "Relokasi sensitif: tanpa ACT01 Dialog, warga −3 (warga merasa digusur). Sewa mesti terjangkau.",
+      "sumber": [
+        { "teks": "Sekitar 1,16 miliar warga kota tinggal di kawasan kumuh (SDG 11.1.1).", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" },
+        { "teks": "Ketersediaan hunian layak dan terjangkau tetap menjadi tantangan bagi warga kota.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K15",
+      "idx": 15,
+      "nama": "Sentra PKL Tertata + Jam Aman",
+      "kategori": "ekonomi",
+      "biaya": 10,
+      "deskripsi": "Menata PKL itu soal menyediakan tempat yang layak, bukan menyapu dagangan.",
+      "kenapa_penting": "Porsi pekerja informal Indonesia sekitar 57,8% pada Agustus 2025 (BPS, Agustus 2025).",
+      "efek": {
+        "langsung": { "udara": 0, "akses": 1, "hijau": 1, "warga": 4 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "warga": 2 }, "catatan": "Memadamkan event ‘demo PKL’." }
+        ]
+      },
+      "kondisi": "Sewa harus terjangkau + ada air & listrik. Kalau mahal, lapak balik ke trotoar (warga −3).",
+      "sumber": [
+        { "teks": "Porsi pekerja informal Indonesia sekitar 57,8% pada Agustus 2025.", "url": "https://www.nextindonesia.id/Update/2026/02/06/228/Porsi-Pekerja-Informal-Terus-Menyusut", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K16",
+      "idx": 16,
+      "nama": "Revitalisasi Pasar Cempaka",
+      "kategori": "ekonomi",
+      "biaya": 18,
+      "deskripsi": "Pasar rakyat adalah ruang usaha warga; libatkan pedagang sejak awal.",
+      "kenapa_penting": "Revitalisasi pasar rakyat mendukung kegiatan ekonomi warga dan komunitas.",
+      "efek": {
+        "langsung": { "udara": 0, "akses": 0, "hijau": 1, "warga": 5 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "warga": 2, "akses": 1 }, "catatan": "Masa pembangunan: pedagang dipindah sementara." },
+          { "setelahRonde": 2, "efek": { "warga": -1 }, "catatan": "Omzet hilang bila tak ada kios sementara dan informasi.", "syarat": "Tidak ada kios sementara dan informasi" }
+        ]
+      },
+      "sumber": [
+        { "teks": "Revitalisasi pasar rakyat mendukung kegiatan ekonomi warga dan komunitas.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K17",
+      "idx": 17,
+      "nama": "Koridor Teduh (pohon peneduh jalan)",
+      "kategori": "hijau",
+      "biaya": 6,
+      "deskripsi": "Pohon di pinggir jalan bikin orang mau jalan kaki dan AC nggak kerja lembur. Keduanya menghemat energi.",
+      "kenapa_penting": "Naungan dan jalur nyaman dapat menarik pejalan kaki (ITDP, Pedestrians First).",
+      "efek": {
+        "langsung": { "udara": 2, "akses": 1, "hijau": 2, "warga": 0 },
+        "tertunda": [
+          { "setelahRonde": 2, "efek": { "udara": 1, "hijau": 1 }, "catatan": "Pohon tumbuh dan memberi naungan lebih luas." }
+        ]
+      },
+      "kondisi": "Salah jenis pohon = akar rusak trotoar (biaya perawatan naik).",
+      "sumber": [
+        { "teks": "ITDP Pedestrians First: konteks kualitatif tentang kenyamanan pejalan kaki melalui naungan dan jalur nyaman.", "url": "https://itdp.org/multimedia/is-your-city-pedestrian-friendly", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K18",
+      "idx": 18,
+      "nama": "Pelebaran Jalan Lingkar",
+      "kategori": "transport",
+      "biaya": 24,
+      "deskripsi": "Menambah kapasitas jalan mengundang lebih banyak kendaraan, tetapi perjalanan tidak otomatis lebih pendek. Jalan yang lebih besar menagih lahan, udara, dan waktu.",
+      "kenapa_penting": "Pelebaran jalan dapat mengundang lebih banyak kendaraan (induced demand); perjalanan tidak otomatis lebih pendek.",
+      "efek": {
+        "langsung": { "udara": 0, "akses": 7, "hijau": 0, "warga": 0 },
+        "tertunda": [
+          { "setelahRonde": 4, "efek": { "akses": -3, "udara": -2 }, "catatan": "Permintaan terinduksi: lebih banyak kendaraan pindah ke jalan baru." }
+        ]
+      },
+      "kondisi": "Lahan & pohon pinggir jalan tergusur (naratif); di ronde +4 warga bertanya: ‘dulu katanya lancar?’",
+      "sumber": [
+        { "teks": "Induced demand/rebound effect: penambahan kapasitas jalan dapat mengundang lalu lintas tambahan; efek bervariasi menurut kota dan waktu.", "url": "https://smartgrowthamerica.org/induced-demand-calculator/", "akses": "2026-10-17" }
+      ]
+    },
+    {
+      "id": "K19",
+      "idx": 19,
+      "nama": "Subsidi Cicilan Kendaraan Pribadi",
+      "kategori": "ekonomi",
+      "biaya": 10,
+      "deskripsi": "Uang rakyat untuk menambah mobil pribadi = menjual jalanan kepada yang sudah punya kendaraan. Kalau mau ada subsidi, subsidi angkutan umum.",
+      "kenapa_penting": "Dalam model permainan, subsidi kendaraan pribadi menjadi tradeoff yang dapat menambah kendaraan tanpa menambah ruang jalan.",
+      "efek": {
+        "langsung": { "udara": 0, "akses": 0, "hijau": 0, "warga": 4 },
+        "tertunda": [
+          { "setelahRonde": 4, "efek": { "udara": -4, "akses": -3 }, "catatan": "kepemilikan kendaraan melonjak; ruang jalan tidak tumbuh" }
+        ]
+      },
+      "kondisi": "Populer di dealer & keluarga muda; parkir liar di mana-mana (flavor di Laporan Kota).",
+      "sumber": [
+        { "teks": "WRI: konteks induced demand ketika kapasitas jalan berubah; bukan bukti dampak subsidi kendaraan.", "url": "https://smartgrowthamerica.org/induced-demand-calculator/", "akses": "2026-10-17" }
+      ]
+    }
+  ]
+}

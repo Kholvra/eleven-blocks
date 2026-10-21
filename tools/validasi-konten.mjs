@@ -5,12 +5,20 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const meters = new Set(['udara', 'akses', 'hijau', 'warga']);
+const categories = new Set(['transport', 'tata-guna-lahan', 'air', 'sampah', 'hijau', 'energi', 'permukiman', 'ekonomi']);
+const numericTokenPattern = /\b\d+(?:[.,]\d+)?%?\b/g;
 const errors = [];
+let registryNumbers;
 let dataDirectory = join(root, 'src/data');
 let dataLabel = 'src/data';
+let cardsOnly = false;
 for (let index = 2; index < process.argv.length; index += 1) {
+  if (process.argv[index] === '--cards-only') {
+    cardsOnly = true;
+    continue;
+  }
   if (process.argv[index] !== '--data-dir' || !process.argv[index + 1] || process.argv[index + 1].startsWith('--')) {
-    console.error('Penggunaan: node tools/validasi-konten.mjs [--data-dir <path>]');
+    console.error('Penggunaan: node tools/validasi-konten.mjs [--cards-only] [--data-dir <path>]');
     process.exit(2);
   }
   dataDirectory = resolve(process.cwd(), process.argv[index + 1]);
@@ -39,7 +47,6 @@ function loadJson(filename) {
   }
 }
 
-
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -50,6 +57,50 @@ function requiredString(record, field, file, idx) {
   }
 }
 
+function numericTokens(text) {
+  return text.match(numericTokenPattern) ?? [];
+}
+
+function loadRegistryNumbers(file, field, idx) {
+  if (registryNumbers) return registryNumbers;
+  const registryFile = 'docs/game/04-angka-dan-sumber.md';
+  const path = join(root, registryFile);
+  if (!existsSync(path)) {
+    fail(file, field, `${registryFile} §1 tidak dapat dibaca untuk pemeriksaan klaim angka`, idx);
+    registryNumbers = new Set();
+    return registryNumbers;
+  }
+  const content = readFileSync(path, 'utf8');
+  const start = content.match(/^## 1\..*$/m)?.index ?? -1;
+  const end = start < 0 ? -1 : content.indexOf('\n## ', start + 1);
+  if (start < 0) {
+    fail(file, field, `${registryFile} §1 tidak ditemukan untuk pemeriksaan klaim angka`, idx);
+    registryNumbers = new Set();
+  } else {
+    const section = content.slice(start, end < 0 ? undefined : end);
+    registryNumbers = new Set(numericTokens(section));
+  }
+  return registryNumbers;
+}
+
+function validateNumericClaims(record, file, idx) {
+  const whyTokens = numericTokens(typeof record.kenapa_penting === 'string' ? record.kenapa_penting : '');
+  const sourceTexts = Array.isArray(record.sumber) ? record.sumber.map(source => source?.teks).filter(text => typeof text === 'string') : [];
+  if (whyTokens.length) {
+    const citedTokens = new Set(sourceTexts.flatMap(numericTokens));
+    for (const token of whyTokens) {
+      if (!citedTokens.has(token)) fail(file, 'kenapa_penting', `token angka "${token}" tidak tercantum dalam teks sumber record ini`, idx);
+    }
+  }
+  sourceTexts.forEach((text, sourceIndex) => {
+    const tokens = numericTokens(text);
+    if (!tokens.length) return;
+    const allowed = loadRegistryNumbers(file, `sumber[${sourceIndex}].teks`, idx);
+    for (const token of tokens) {
+      if (!allowed.has(token)) fail(file, `sumber[${sourceIndex}].teks`, `token angka "${token}" tidak ditemukan di docs/game/04-angka-dan-sumber.md §1`, idx);
+    }
+  });
+}
 function validateSources(record, file, idx) {
   if (!Array.isArray(record?.sumber) || record.sumber.length === 0) {
     fail(file, 'sumber', 'wajib berupa array dengan minimal satu sumber', idx);
@@ -74,6 +125,30 @@ function validateSources(record, file, idx) {
     }
     if (typeof source.akses !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(source.akses) || !validDate(source.akses)) {
       fail(file, `${field}.akses`, 'wajib berupa tanggal valid berformat YYYY-MM-DD', idx);
+    }
+  });
+}
+
+function validateDelayed(effects, file, field, idx) {
+  if (effects === undefined) return;
+  if (!Array.isArray(effects)) {
+    fail(file, field, 'wajib berupa array', idx);
+    return;
+  }
+  effects.forEach((entry, position) => {
+    const entryField = `${field}[${position}]`;
+    if (!isObject(entry)) {
+      fail(file, entryField, 'wajib berupa objek', idx);
+      return;
+    }
+    if (!Number.isInteger(entry.setelahRonde) || entry.setelahRonde < 1 || entry.setelahRonde > 6) {
+      fail(file, `${entryField}.setelahRonde`, 'wajib berupa bilangan bulat 1..6', idx);
+    }
+    validateEffect(entry.efek, file, `${entryField}.efek`, idx);
+    requiredString(entry, 'catatan', file, idx);
+    if (entry.syarat !== undefined) requiredString(entry, 'syarat', file, idx);
+    for (const key of Object.keys(entry)) {
+      if (!['setelahRonde', 'efek', 'catatan', 'syarat'].includes(key)) fail(file, `${entryField}.${key}`, 'kunci tertunda tidak dikenal', idx);
     }
   });
 }
@@ -104,7 +179,42 @@ function validateEffect(effect, file, field, idx) {
   }
 }
 
-function validateDelayed(effects, file, field, idx) {
+
+function validateTargetMeta(data, file, collection) {
+  if (!isObject(data)) {
+    fail(file, '$', 'akar JSON wajib berupa objek', undefined);
+    return false;
+  }
+  if (!isObject(data._meta) || data._meta.mode !== 'target') {
+    fail(file, '_meta.mode', "wajib bernilai 'target'", undefined);
+  } else if (Object.keys(data._meta).some(key => key !== 'mode')) {
+    fail(file, '_meta', 'hanya field mode yang diizinkan', undefined);
+  }
+  for (const key of Object.keys(data)) {
+    if (key !== '_meta' && key !== collection) fail(file, key, `kunci akar tidak dikenal; yang diizinkan _meta dan ${collection}`, undefined);
+  }
+  return true;
+}
+
+function validateTargetEffect(effect, file, field, idx) {
+  if (!isObject(effect)) {
+    fail(file, field, 'wajib berupa objek efek', idx);
+    return;
+  }
+  for (const key of Object.keys(effect)) {
+    if (key === 'perRonde') fail(file, `${field}.perRonde`, 'efek per ronde/pasif dilarang', idx);
+    else if (!meters.has(key)) fail(file, `${field}.${key}`, 'kunci meter/efek tidak dikenal', idx);
+    else {
+      const amount = effect[key];
+      if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < -15 || amount > 15) {
+        fail(file, `${field}.${key}`, 'nilai efek wajib berupa angka dalam rentang -15..+15', idx);
+      }
+    }
+  }
+}
+
+function validateTargetDelayed(effects, file, field, idx) {
+  if (effects === undefined) return;
   if (!Array.isArray(effects)) {
     fail(file, field, 'wajib berupa array', idx);
     return;
@@ -118,73 +228,87 @@ function validateDelayed(effects, file, field, idx) {
     if (!Number.isInteger(entry.setelahRonde) || entry.setelahRonde < 1 || entry.setelahRonde > 6) {
       fail(file, `${entryField}.setelahRonde`, 'wajib berupa bilangan bulat 1..6', idx);
     }
-    validateEffect(entry.efek, file, `${entryField}.efek`, idx);
+    validateTargetEffect(entry.efek, file, `${entryField}.efek`, idx);
     requiredString(entry, 'catatan', file, idx);
+    if (entry.syarat !== undefined) requiredString(entry, 'syarat', file, idx);
+    for (const key of Object.keys(entry)) {
+      if (!['setelahRonde', 'efek', 'catatan', 'syarat'].includes(key)) fail(file, `${entryField}.${key}`, 'kunci tertunda tidak dikenal', idx);
+    }
+  });
+}
+function validateTargetRecord(record, file, expectedId, expectedIdx) {
+  const idx = record?.idx ?? expectedId;
+  if (!isObject(record)) {
+    fail(file, expectedId, 'setiap kartu wajib berupa objek', idx);
+    return;
+  }
+  if (record.id !== expectedId) fail(file, 'id', `urutan wajib ${expectedId}; ditemukan ${String(record.id)}`, idx);
+  if (expectedIdx !== undefined && record.idx !== expectedIdx) {
+    fail(file, 'idx', `wajib ${expectedIdx} sesuai urutan kartu`, idx);
+  }
+  for (const field of ['nama', 'deskripsi', 'kenapa_penting']) requiredString(record, field, file, idx);
+  if (expectedIdx !== undefined) {
+    requiredString(record, 'kategori', file, idx);
+    if (!categories.has(record.kategori)) fail(file, 'kategori', 'kategori tidak dikenal', idx);
+    if (record.kondisi !== undefined) requiredString(record, 'kondisi', file, idx);
+  }
+  if (typeof record.biaya !== 'number' || !Number.isInteger(record.biaya) || record.biaya < 0) {
+    fail(file, 'biaya', 'wajib berupa bilangan bulat non-negatif (poin abstrak)', idx);
+  }
+  if (!isObject(record.efek)) {
+    fail(file, 'efek', 'wajib berupa objek', idx);
+  } else {
+    validateTargetEffect(record.efek.langsung, file, 'efek.langsung', idx);
+    validateTargetDelayed(record.efek.tertunda, file, 'efek.tertunda', idx);
+    for (const key of Object.keys(record.efek)) {
+      if (!['langsung', 'tertunda'].includes(key)) fail(file, `efek.${key}`, 'kunci efek tidak dikenal', idx);
+    }
+  }
+  if (Array.isArray(record.sumber)) {
+    record.sumber.forEach((source, sourceIndex) => {
+      if (!isObject(source)) return;
+      for (const key of Object.keys(source)) {
+        if (!['teks', 'url', 'akses'].includes(key)) {
+          fail(file, `sumber[${sourceIndex}].${key}`, 'field sumber tidak dikenal', idx);
+        }
+      }
+    });
+  }
+  validateSources(record, file, idx);
+  validateNumericClaims(record, file, idx);
+  const allowedFields = expectedIdx === undefined
+    ? ['id', 'nama', 'biaya', 'deskripsi', 'kenapa_penting', 'efek', 'sumber']
+    : ['id', 'idx', 'nama', 'kategori', 'kondisi', 'biaya', 'deskripsi', 'kenapa_penting', 'efek', 'sumber'];
+  for (const key of Object.keys(record)) {
+    if (!allowedFields.includes(key)) fail(file, key, 'field kartu tidak dikenal', idx);
+  }
+}
+
+function validateTargetInventory(data, file, collection, prefix, count, hasIdx) {
+  if (!validateTargetMeta(data, file, collection)) return;
+  if (!Array.isArray(data[collection])) {
+    fail(file, collection, 'wajib berupa array', undefined);
+    return;
+  }
+  const records = data[collection];
+  if (records.length !== count) fail(file, collection, `wajib tepat ${count} kartu; ditemukan ${records.length}`, undefined);
+  const seen = new Set();
+  records.forEach((record, position) => {
+    const expectedId = `${prefix}${String(position + 1).padStart(2, '0')}`;
+    const idx = record?.idx ?? expectedId;
+    if (record?.id !== undefined) {
+      if (seen.has(record.id)) fail(file, 'id', 'id kartu harus unik', idx);
+      seen.add(record.id);
+    }
+    validateTargetRecord(record, file, expectedId, hasIdx ? position + 1 : undefined);
   });
 }
 
-function validateCard(card, file, idx) {
-  if (!isObject(card)) {
-    fail(file, '$', 'setiap kartu wajib berupa objek', idx);
-    return;
-  }
-  for (const field of ['id', 'nama', 'kategori', 'deskripsi', 'kenapa_penting']) requiredString(card, field, file, idx);
-  if (typeof card.biaya !== 'number' || !Number.isFinite(card.biaya) || card.biaya < 0) {
-    fail(file, 'biaya', 'wajib berupa angka non-negatif (poin abstrak)', idx);
-  }
-  if (!isObject(card.efek)) fail(file, 'efek', 'wajib berupa objek', idx);
-  else {
-    validateEffect(card.efek.langsung, file, 'efek.langsung', idx);
-    if (card.efek.tertunda !== undefined) validateDelayed(card.efek.tertunda, file, 'efek.tertunda', idx);
-    if (Object.hasOwn(card.efek, 'perRonde')) fail(file, 'efek.perRonde', 'efek per ronde/pasif dilarang', idx);
-  }
-  if (card.horizon_note !== undefined) {
-    if (!isObject(card.horizon_note)) fail(file, 'horizon_note', 'wajib berupa objek', idx);
-    else for (const key of Object.keys(card.horizon_note)) {
-      if (!['r1', 'r5', 'r10'].includes(key) && !key.startsWith('_')) fail(file, `horizon_note.${key}`, 'kunci yang diizinkan hanya r1, r5, r10', idx);
-      else if (!key.startsWith('_')) requiredString(card.horizon_note, key, file, idx);
-    }
-  }
-  if (card.penempatan !== undefined && isObject(card.penempatan) && card.penempatan.aset3d !== undefined) {
-    const asset = card.penempatan.aset3d;
-    if (typeof asset !== 'string' || asset.trim() === '') fail(file, 'penempatan.aset3d', 'wajib berupa nama aset', idx);
-    else {
-      const assetPath = join(root, 'src/assets/3d', `${asset}.glb`);
-      if (!existsSync(assetPath)) fail(file, 'penempatan.aset3d', `GLB tidak ditemukan: src/assets/3d/${asset}.glb`, idx);
-    }
-  }
-  validateSources(card, file, idx);
+function validateTargetPackage() {
+  validateTargetInventory(loadJson('cards.json'), `${dataLabel}/cards.json`, 'kebijakan', 'K', 19, true);
+  validateTargetInventory(loadJson('actions.json'), `${dataLabel}/actions.json`, 'aksi', 'ACT', 4, false);
 }
 
-function validateCards(data, file) {
-  if (!isObject(data)) {
-    fail(file, '$', 'akar JSON wajib berupa objek', undefined);
-    return;
-  }
-  const policies = Array.isArray(data.kebijakan) ? data.kebijakan : data.kartu;
-  const actionCards = data.aksi;
-  if (!Array.isArray(policies)) fail(file, 'kebijakan/kartu', 'wajib berupa array kartu kebijakan', undefined);
-  if (!Array.isArray(actionCards)) fail(file, 'aksi', 'wajib berupa array kartu aksi', undefined);
-  const policyCards = Array.isArray(policies) ? policies : [];
-  const actionEntries = Array.isArray(actionCards) ? actionCards : [];
-  if (policyCards.length !== 19) fail(file, 'kebijakan/kartu', `wajib tepat 19 kartu kebijakan; ditemukan ${policyCards.length}`, undefined);
-  if (actionEntries.length !== 4) fail(file, 'aksi', `wajib tepat 4 kartu aksi; ditemukan ${actionEntries.length}`, undefined);
-  const seen = new Set();
-  const cardIds = new Set();
-  for (const [kind, entries] of [['kebijakan', policyCards], ['aksi', actionEntries]]) {
-    entries.forEach((card, position) => {
-      const idx = card?.idx ?? `${kind}-${position + 1}`;
-      if (card?.id && cardIds.has(card.id)) fail(file, 'id', 'id kartu harus unik', idx);
-      if (card?.id) cardIds.add(card.id);
-      if (kind === 'kebijakan') {
-        if (!Number.isInteger(card?.idx) || card.idx < 1 || card.idx > 19) fail(file, 'idx', 'kartu kebijakan wajib memiliki idx bilangan bulat 1..19', idx);
-        else if (seen.has(card.idx)) fail(file, 'idx', 'nilai idx kartu kebijakan harus unik', card.idx);
-        else seen.add(card.idx);
-      }
-      validateCard(card, file, idx);
-    });
-  }
-}
 
 function validateEvents(data, file) {
   if (!isObject(data) || !Array.isArray(data.event)) {
@@ -261,13 +385,20 @@ function validateFacts(data, file) {
   });
 }
 
-validateCards(loadJson('cards.json'), `${dataLabel}/cards.json`);
-validateEvents(loadJson('events.json'), `${dataLabel}/events.json`);
-validateFacts(loadJson('fakta.json'), `${dataLabel}/fakta.json`);
+if (cardsOnly) {
+  validateTargetPackage();
+} else {
+  validateTargetPackage();
+  validateEvents(loadJson('events.json'), `${dataLabel}/events.json`);
+  validateFacts(loadJson('fakta.json'), `${dataLabel}/fakta.json`);
+}
 
 if (errors.length > 0) {
   for (const error of errors) console.error(`Validasi konten gagal: ${error}`);
   process.exitCode = 1;
 } else {
-  console.log('Validasi konten berhasil: cards.json, events.json, dan fakta.json valid.');
+  console.log(cardsOnly
+    ? 'Validasi konten berhasil: cards.json dan actions.json valid.'
+    : 'Validasi konten berhasil: cards.json, actions.json, events.json, dan fakta.json valid.');
 }
+
