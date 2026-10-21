@@ -1,5 +1,6 @@
 import balance from '../data/balance.json';
 import { allowedTransitions } from './machine';
+import { isBuildableCell } from './board';
 import type { GameState, Phase, TahapRonde } from './types';
 
 const nextStage: Record<TahapRonde, TahapRonde | null> = {
@@ -10,10 +11,13 @@ const nextStage: Record<TahapRonde, TahapRonde | null> = {
   transisi: null,
 };
 
+const POLICY_PLAY_MARKER = 'kebijakan';
+
 export type GameAction =
   | { type: 'TRANSISI_FASE'; fase: Phase }
   | { type: 'PROSES_TAHAP_RONDE' }
-  | { type: 'SELESAI_RONDE' };
+  | { type: 'SELESAI_RONDE' }
+  | { type: 'TEMPATKAN_KEBIJAKAN'; kartuIdx: number; selIdx: number };
 
 export interface GameEngine {
   getState(): GameState;
@@ -26,6 +30,39 @@ export function createGameEngine(initialState: GameState): GameEngine {
   return {
     getState: () => state,
     dispatch(action) {
+      if (action.type === 'TEMPATKAN_KEBIJAKAN') {
+        if (
+          state.fase !== 'ronde' ||
+          state.tahapRonde !== 'tangan' ||
+          state.kartuDimainkanRondeIni !== null
+        ) {
+          return false;
+        }
+
+        const { kartuIdx, selIdx } = action;
+        if (!Number.isInteger(kartuIdx) || kartuIdx < 0 || !state.tangan.includes(kartuIdx) || state.milik.includes(kartuIdx) || state.papan.ubin.includes(kartuIdx)) {
+          return false;
+        }
+        if (
+          !Number.isInteger(selIdx) ||
+          selIdx < 0 ||
+          selIdx >= state.papan.ubin.length ||
+          selIdx >= state.papan.lebar * state.papan.tinggi ||
+          !isBuildableCell(selIdx) ||
+          state.papan.ubin[selIdx] !== null
+        ) {
+          return false;
+        }
+
+        const nextState = structuredClone(state);
+        nextState.papan.ubin[selIdx] = kartuIdx;
+        nextState.tangan = nextState.tangan.filter((cardIndex) => cardIndex !== kartuIdx);
+        nextState.milik.push(kartuIdx);
+        nextState.kartuDimainkanRondeIni = POLICY_PLAY_MARKER;
+        state = nextState;
+        return true;
+      }
+
       if (action.type === 'PROSES_TAHAP_RONDE') {
         if (state.fase !== 'ronde') return false;
         const stage = nextStage[state.tahapRonde];
