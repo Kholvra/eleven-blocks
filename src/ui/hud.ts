@@ -1,5 +1,16 @@
+import airIcon from '../assets/icons/meter-udara.svg';
+import accessIcon from '../assets/icons/meter-akses.svg';
+import greenIcon from '../assets/icons/meter-hijau.svg';
+import citizenIcon from '../assets/icons/meter-warga.svg';
+import wasteIcon from '../assets/icons/cat-sampah.svg';
+import energyIcon from '../assets/icons/cat-energi.svg';
+import waterIcon from '../assets/icons/cat-air.svg';
+import housingIcon from '../assets/icons/cat-permukiman.svg';
+import { createAudioController } from '../audio/audio';
+
+import balance from '../data/balance.json';
 import actions from '../data/actions.json';
-import { createContextualTip } from './tutorial';
+import { createContextualTip, createTutorialGuide } from './tutorial';
 import cards from '../data/cards.json';
 import events from '../data/events.json';
 import hudCopy from '../data/hud.json';
@@ -9,7 +20,28 @@ import { biayaAksi, biayaKartu, firstOpenBuildableCell, statusAksi, statusKartu 
 import { hitungPreview } from '../game/preview';
 import type { PreviewCandidate, PreviewResult } from '../game/preview';
 import type { GameAction } from '../game/engine';
+import type { AudioController } from '../audio/audio';
+
 import type { Efek, GameState, KunciMeter, TahapRonde } from '../game/types';
+
+
+const categoryIconAssets = {
+  transport: accessIcon,
+  hijau: greenIcon,
+  sampah: wasteIcon,
+  energi: energyIcon,
+  air: waterIcon,
+  permukiman: housingIcon,
+} as const;
+type CategoryIconKey = keyof typeof categoryIconAssets;
+
+const meterIcons: Record<KunciMeter, string> = {
+  udara: airIcon,
+  akses: accessIcon,
+  hijau: greenIcon,
+  warga: citizenIcon,
+};
+
 type FactRecord = {
   id: string; nilai: string; satuan: string; arti: string; konteks: string;
   penerbit: string; tahun: string; akses: string; url: string; link_pendek: string;
@@ -28,6 +60,7 @@ type HudOptions = {
 type MeterNode = { root: HTMLElement; value: HTMLOutputElement; bar: HTMLElement; delta: HTMLElement };
 
 const meterOrder: readonly KunciMeter[] = ['udara', 'akses', 'hijau', 'warga'];
+const meterThresholds = balance.skor.ambang_meter;
 const gamePhases: readonly GameState['fase'][] = ['ronde', 'event', 'ringkasan'];
 const accessDateFormatter = new Intl.DateTimeFormat('id-ID', {
   day: 'numeric',
@@ -37,46 +70,117 @@ const accessDateFormatter = new Intl.DateTimeFormat('id-ID', {
 });
 
 export function createHud(container: HTMLElement, options: HudOptions): HudRenderer {
+  const audio = createAudioController();
+  let selectedCardIdx: number | null = null;
   const hud = document.createElement('div');
   hud.className = 'hud';
   hud.setAttribute('aria-label', hudCopy.copy.statusLabel);
 
-  const status = document.createElement('dl');
-  status.className = 'hud-status';
-  const roundItem = makeStatusItem(hudCopy.copy.round);
-  const budgetItem = makeStatusItem(hudCopy.copy.budget);
-  const handItem = makeStatusItem(hudCopy.copy.hand);
-  const deckItem = makeStatusItem(hudCopy.copy.deck);
-  status.append(roundItem.root, budgetItem.root, handItem.root, deckItem.root);
-  const header = document.createElement('header');
-  header.className = 'hud-header';
-  header.append(status);
 
+  const status = document.createElement('dl');
+  status.className = 'hud-status game-topbar';
+  const budgetItem = makeStatusItem(hudCopy.copy.budget);
+  const roundItem = makeStatusItem(hudCopy.copy.level);
+  const header = document.createElement('header');
+  header.className = 'hud-header game-topbar';
+  const moneyCard = budgetItem.root;
+  moneyCard.classList.add('game-money-card');
+  const levelCard = roundItem.root;
+  levelCard.classList.add('game-level-card');
+  const quickNav = document.createElement('nav');
+  quickNav.className = 'game-quick-controls';
+  quickNav.setAttribute('aria-label', 'Kontrol permainan');
+  const soundButton = document.createElement('button');
+  soundButton.type = 'button';
+  soundButton.className = 'game-control-button';
+  soundButton.textContent = `🔊 ${hudCopy.copy.sound}`;
+  soundButton.addEventListener('click', () => {
+    const enabled = !options.getState().setelan.audio;
+    audio.setEnabled(enabled);
+    if (options.dispatch({ type: 'SETELAN_AUDIO', aktif: enabled })) options.onStateChange();
+  });
+  const accessibilityButton = document.createElement('button');
+  accessibilityButton.type = 'button';
+  accessibilityButton.className = 'game-control-button';
+  accessibilityButton.textContent = `⚙️ ${hudCopy.copy.accessibility}`;
+  accessibilityButton.setAttribute('aria-pressed', 'false');
+  accessibilityButton.addEventListener('click', () => {
+    const scales = ['100', '115', '130'];
+    const current = document.documentElement.dataset.fontScale ?? '100';
+    const next = scales[(scales.indexOf(current) + 1) % scales.length]!;
+    document.documentElement.dataset.fontScale = next;
+    accessibilityButton.setAttribute('aria-pressed', String(next !== '100'));
+    accessibilityButton.setAttribute('aria-label', `${hudCopy.copy.accessibility}: ${next}%`);
+  });
+  const helpButton = document.createElement('button');
+  helpButton.type = 'button';
+  helpButton.className = 'game-control-button';
+  helpButton.textContent = `❓ ${hudCopy.copy.howToPlay}`;
+  const helpDialog = document.createElement('dialog');
+  helpDialog.className = 'game-help-dialog';
+  helpDialog.append(createTutorialGuide(() => helpDialog.close()));
+  helpButton.addEventListener('click', () => helpDialog.showModal());
+  quickNav.append(soundButton, accessibilityButton, helpButton, helpDialog);
+  status.append(moneyCard, levelCard);
+  header.append(status, quickNav);
+
+  const meterPanel = document.createElement('section');
+  meterPanel.className = 'game-left-sidebar';
+  const trends = document.createElement('section');
+  trends.className = 'game-trends';
+  trends.setAttribute('aria-label', hudCopy.copy.trends);
+  const trendsHeading = document.createElement('h2');
+  trendsHeading.textContent = 'Tren Perubahan';
+  const trendList = document.createElement('ul');
+  trendList.className = 'game-trend-list';
+  const trendNodes = {} as Record<KunciMeter, HTMLElement>;
+  for (const key of meterOrder) {
+    const row = document.createElement('li');
+    row.className = 'game-trend-row';
+    const label = document.createElement('span');
+    label.textContent = key === 'akses' ? 'Akses' : key === 'hijau' ? 'Hijau' : key === 'warga' ? 'Warga' : 'Udara';
+    const badge = document.createElement('span');
+    badge.className = 'game-trend-badge';
+    badge.textContent = '0';
+    row.append(label, badge);
+    trendList.append(row);
+    trendNodes[key] = badge;
+  }
+  trends.append(trendsHeading, trendList);
   const meters = document.createElement('section');
-  meters.className = 'hud-meters';
-  meters.setAttribute('aria-label', hudCopy.copy.meterPanel);
+  meters.className = 'hud-meters game-resources';
+  meters.setAttribute('aria-label', hudCopy.copy.resources);
+  const resourceHeading = document.createElement('h2');
+  resourceHeading.textContent = hudCopy.copy.resources;
+  meters.append(resourceHeading);
   const meterNodes = {} as Record<KunciMeter, MeterNode>;
   for (const key of meterOrder) {
     const source = hudCopy.meter[key];
     const chip = document.createElement('article');
-    chip.className = 'meter-chip';
+    chip.className = 'meter-chip game-resource-meter';
     chip.dataset.meter = key === 'hijau' ? 'rth' : key === 'warga' ? 'kesejahteraan' : key;
     const label = document.createElement('h3');
-    label.textContent = source.label;
-    const symbol = document.createElement('span');
+    label.textContent = key === 'akses' ? 'Akses' : key === 'hijau' ? 'Hijau' : key === 'warga' ? 'Warga' : 'Udara';
+    const symbol = document.createElement('img');
     symbol.className = 'meter-symbol';
+    symbol.src = meterIcons[key];
+    symbol.alt = '';
     symbol.setAttribute('aria-hidden', 'true');
-    symbol.textContent = source.symbol;
     const value = document.createElement('output');
     value.className = 'meter-value';
     const progress = document.createElement('div');
-    progress.className = 'meter-progress';
+    progress.className = 'meter-progress game-meter-track';
     progress.setAttribute('role', 'progressbar');
     progress.setAttribute('aria-valuemin', '0');
     progress.setAttribute('aria-valuemax', '100');
     const bar = document.createElement('span');
     bar.setAttribute('aria-hidden', 'true');
-    progress.append(bar);
+    const threshold = document.createElement('span');
+    threshold.className = 'game-meter-threshold';
+    threshold.style.left = `${meterThresholds[key]}%`;
+    threshold.title = hudCopy.copy.threshold;
+    threshold.setAttribute('aria-hidden', 'true');
+    progress.append(bar, threshold);
     const delta = document.createElement('p');
     delta.className = 'meter-delta';
     const sourceDetails = document.createElement('details');
@@ -92,7 +196,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     meterNodes[key] = { root: chip, value, bar, delta };
   }
   meters.append(createContextualTip('meters'));
-
+  meterPanel.append(trends, meters);
   const phases = document.createElement('ol');
   phases.className = 'hud-phases';
   phases.setAttribute('aria-label', hudCopy.copy.phaseSequence);
@@ -107,32 +211,24 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     phaseNodes[phaseId] = item;
   }
 
-  const news = document.createElement('details');
-  news.className = 'hud-news';
-  news.open = true;
-  const newsTitle = document.createElement('summary');
+  const news = document.createElement('section');
+  news.className = 'hud-news game-events';
+  news.setAttribute('aria-label', hudCopy.copy.events);
+  const newsTitle = document.createElement('h2');
   newsTitle.className = 'hud-news-toggle';
-  newsTitle.textContent = hudCopy.copy.news;
+  newsTitle.textContent = hudCopy.copy.events;
   const newsBody = document.createElement('div');
-  news.append(newsTitle, newsBody);
-
-  const boardHeading = document.createElement('h2');
-  boardHeading.textContent = hudCopy.copy.board;
-  const boardList = document.createElement('ol');
-  boardList.className = 'hud-board-list';
-  boardList.setAttribute('aria-label', hudCopy.copy.board);
-  for (const cell of BUILDABLE_CELLS) {
-    const item = document.createElement('li');
-    item.dataset.cell = String(cell);
-    boardList.append(item);
-  }
+  newsBody.className = 'game-event-body';
+  const roundsRemaining = document.createElement('p');
+  roundsRemaining.className = 'game-rounds-remaining';
+  news.append(newsTitle, roundsRemaining, newsBody);
 
   const cardHeading = document.createElement('h2');
   cardHeading.textContent = hudCopy.copy.policy;
   const cardList = document.createElement('ul');
-  cardList.className = 'hud-card-list';
+  cardList.className = 'hud-card-list game-policy-cards';
   const preview = document.createElement('section');
-  preview.className = 'hud-preview';
+  preview.className = 'hud-preview game-preview-bubble';
   preview.hidden = true;
   preview.setAttribute('aria-live', 'polite');
   preview.setAttribute('aria-atomic', 'true');
@@ -140,19 +236,38 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   previewHeading.textContent = 'Pratinjau dampak';
   preview.append(previewHeading);
   const actionHeading = document.createElement('h2');
-  actionHeading.textContent = hudCopy.copy.actions;
+  actionHeading.textContent = hudCopy.copy.actionCards;
   const actionList = document.createElement('ul');
-  actionList.className = 'hud-card-list';
-  actionList.setAttribute('aria-label', hudCopy.copy.actions);
-  const content = document.createElement('div');
-  content.className = 'hud-content';
-  content.append(news, cardHeading, createContextualTip('cards'), createContextualTip('budget'), cardList, preview, actionHeading, actionList);
-  const sidebar = document.createElement('aside');
-  sidebar.className = 'hud-sidebar';
-  sidebar.append(boardHeading, boardList);
-  const main = document.createElement('div');
-  main.className = 'hud-main';
-  main.append(content, sidebar);
+  actionList.className = 'hud-card-list game-action-cards';
+  actionList.setAttribute('aria-label', hudCopy.copy.actionCards);
+  const dock = document.createElement('section');
+  dock.className = 'game-card-dock';
+  const dockContent = document.createElement('div');
+  dockContent.className = 'game-card-dock-content';
+  dockContent.append(cardHeading, createContextualTip('cards'), cardList, actionHeading, actionList);
+  const deckCounter = document.createElement('div');
+  deckCounter.className = 'game-deck-counter';
+  deckCounter.setAttribute('aria-label', hudCopy.copy.deckTitle);
+  const deselectButton = document.createElement('button');
+  deselectButton.type = 'button';
+  deselectButton.className = 'game-card-deselect';
+  deselectButton.textContent = hudCopy.copy.deselectCard;
+  deselectButton.hidden = true;
+  deselectButton.addEventListener('click', () => {
+    audio.playClick();
+    selectedCardIdx = null;
+    preview.hidden = true;
+    deselectButton.hidden = true;
+    options.onStateChange();
+  });
+  dock.append(preview, deselectButton, dockContent, deckCounter);
+
+  const rightSidebar = document.createElement('aside');
+  rightSidebar.className = 'game-right-sidebar';
+  rightSidebar.append(news);
+  const layout = document.createElement('div');
+  layout.className = 'game-hud-layout';
+  layout.append(meterPanel, rightSidebar);
 
   const disclaimer = document.createElement('p');
   disclaimer.className = 'hud-disclaimer';
@@ -173,7 +288,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   container.append(error);
 
   const controls = document.createElement('footer');
-  controls.className = 'hud-actions';
+  controls.className = 'hud-actions game-round-controls';
   const advance = document.createElement('button');
   advance.type = 'button';
   advance.className = 'hud-action-button';
@@ -189,8 +304,39 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     if (options.dispatch(action)) options.onStateChange();
   });
   controls.append(advance);
-  hud.append(header, meters, phases, main, disclaimer, live, controls);
+  hud.append(header, layout, phases, dock, disclaimer, live, controls);
   container.append(hud);
+
+  const placeSelectedCard = (cell: number): void => {
+    if (selectedCardIdx === null) return;
+    const current = options.getState();
+    if (!statusKartu(current, selectedCardIdx).available || !BUILDABLE_CELLS.includes(cell) ||
+        current.papan.ubin[cell] !== null && current.papan.ubin[cell] !== undefined) return;
+    audio.playClick();
+    if (options.dispatch({ type: 'MAIN_KARTU', kartuIdx: selectedCardIdx, selIdx: cell })) {
+      audio.playConfirm();
+      selectedCardIdx = null;
+      options.onStateChange();
+    }
+  };
+  const onBoardTileClick = (event: Event): void => {
+    const detail = (event as CustomEvent<{ selIdx?: unknown }>).detail;
+    if (typeof detail?.selIdx === 'number' && Number.isInteger(detail.selIdx)) placeSelectedCard(detail.selIdx);
+  };
+  window.addEventListener('board-tile-click', onBoardTileClick);
+  hud.addEventListener('click', (event) => {
+    if (selectedCardIdx === null || (event.target as HTMLElement).closest('.hud-card, .game-card-dock, .game-hud-layout, .hud-actions, .game-topbar')) return;
+    selectedCardIdx = null;
+    preview.hidden = true;
+    options.onStateChange();
+  });
+  document.addEventListener('click', (event) => {
+    if (selectedCardIdx === null || (event.target as HTMLElement).closest('.game-playing-card')) return;
+    selectedCardIdx = null;
+    preview.hidden = true;
+    deselectButton.hidden = true;
+    options.onStateChange();
+  });
 
   let initialRender = true;
   let announcedNote = '';
@@ -210,24 +356,31 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
       hud.hidden = !gamePhases.includes(state.fase);
       if (hud.hidden) return;
 
-      roundItem.value.textContent = `${state.ronde}/10`;
-      budgetItem.value.textContent = String(state.anggaran);
-      handItem.value.textContent = String(state.tangan.length);
-      deckItem.value.textContent = String(state.deck.length);
+      roundItem.value.textContent = `Ronde ${state.ronde} / 10`;
+      budgetItem.value.textContent = `${state.anggaran} poin`;
+      deckCounter.textContent = `🎴 ${state.deck.length}`;
+      deckCounter.setAttribute('aria-label', `${hudCopy.copy.deckTitle}: ${state.deck.length}`);
+      soundButton.textContent = `${state.setelan.audio ? '🔊' : '🔇'} ${hudCopy.copy.sound}`;
+      soundButton.setAttribute('aria-pressed', String(state.setelan.audio));
+      roundsRemaining.textContent = `${hudCopy.copy.remainingRounds}: ${10 - state.ronde}`;
+      renderNews(newsBody, state.ronde);
       const delta = latestDelta(state);
       for (const key of meterOrder) {
         const node = meterNodes[key];
         const value = state.meter[key];
-        node.value.value = String(value);
-        node.value.textContent = String(value);
-        node.root.setAttribute('aria-label', hudCopy.copy.accessibleMeter.replace('{label}', hudCopy.meter[key].label).replace('{value}', String(value)));
+        node.value.value = `${value} / 100`;
+        node.value.textContent = `${value} / 100`;
+        node.root.setAttribute('aria-label', hudCopy.copy.accessibleMeter.replace('{label}', hudCopy.meter[key].label).replace('{value}', `${value} / 100`));
         const progress = node.root.querySelector<HTMLElement>('.meter-progress');
         progress?.setAttribute('aria-valuenow', String(value));
         progress?.setAttribute('aria-label', hudCopy.meter[key].label);
         node.bar.style.width = `${value}%`;
-        const change = delta?.[key];
-        node.delta.textContent = change === undefined ? '' : `${change > 0 ? '+' : ''}${change}`;
-        node.delta.setAttribute('aria-label', node.delta.textContent ? `${hudCopy.meter[key].label} ${node.delta.textContent}` : '');
+        const change = delta?.[key] ?? 0;
+        node.delta.textContent = change === 0 ? '0' : `${change > 0 ? '+' : ''}${change}`;
+        node.delta.setAttribute('aria-label', `${hudCopy.meter[key].label} ${node.delta.textContent}`);
+        trendNodes[key].textContent = change > 0 ? `> +${change}` : change < 0 ? `> ${change}` : '> 0';
+        trendNodes[key].classList.toggle('is-positive', change > 0);
+        trendNodes[key].classList.toggle('is-negative', change < 0);
       }
 
       const activePhase = state.fase === 'ringkasan' ? 'transisi' : state.tahapRonde;
@@ -235,10 +388,17 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
         if (phase === activePhase) item.setAttribute('aria-current', 'step');
         else item.removeAttribute('aria-current');
       }
-      renderNews(newsBody, state.ronde);
-      renderBoard(boardList, state);
-      renderCards(cardList, state, options, (candidate) => renderPreview(preview, candidate, state));
-      renderActions(actionList, state, options, (candidate) => renderPreview(preview, candidate, state));
+      renderCards(cardList, state, options, (candidate) => renderPreview(preview, candidate, state), selectedCardIdx, (index) => {
+        selectedCardIdx = index;
+        audio.playClick();
+      }, audio, (index) => {
+        selectedCardIdx = index;
+        preview.hidden = true;
+      }, () => {
+        preview.hidden = true;
+      });
+      renderActions(actionList, state, options, (candidate) => renderPreview(preview, candidate, state), audio);
+      deselectButton.hidden = selectedCardIdx === null;
       advance.textContent = state.fase === 'ringkasan'
         ? hudCopy.copy.viewReport
         : state.tahapRonde === 'transisi'
@@ -382,15 +542,21 @@ function renderFactCitations(panel: HTMLElement, factIds: readonly string[]): vo
   }
 }
 
-function renderBoard(list: HTMLOListElement, state: GameState): void {
+function renderBoard(list: HTMLOListElement, state: GameState, selectedCardIdx: number | null): void {
   for (const item of list.children) {
     const element = item as HTMLLIElement;
     const cell = Number(element.dataset.cell);
     const code = labelCell(cell);
     const occupied = state.papan.ubin[cell];
-    element.textContent = occupied === null || occupied === undefined
+    const button = element.querySelector<HTMLButtonElement>('.hud-board-cell');
+    if (!button) continue;
+    const empty = occupied === null || occupied === undefined;
+    button.textContent = empty
       ? hudCopy.copy.cellEmpty.replace('{code}', code)
       : hudCopy.copy.cellOccupied.replace('{code}', code).replace('{card}', cards.kebijakan[occupied]?.nama ?? '');
+    button.disabled = !empty;
+    const placementHint = empty && selectedCardIdx !== null ? ' Tempatkan kartu terpilih di sini.' : '';
+    button.setAttribute('aria-label', `${button.textContent ?? ''}${placementHint}`);
   }
 }
 
@@ -399,6 +565,11 @@ function renderCards(
   state: GameState,
   options: HudOptions,
   selectCandidate: (candidate: PreviewCandidate) => void,
+  selectedCardIdx: number | null,
+  onSelect: (index: number) => void,
+  audio: AudioController,
+  onDeselect: (index: number) => void,
+  dismissPreview: () => void,
 ): void {
   list.replaceChildren();
   if (state.tangan.length === 0) {
@@ -412,71 +583,118 @@ function renderCards(
     if (!card) continue;
     const availability = statusKartu(state, index);
     const item = document.createElement('li');
-    item.className = 'hud-card';
+    item.className = 'hud-card hud-card--policy game-playing-card';
+    item.dataset.card = String(index);
+    const isSelected = selectedCardIdx === index;
+    if (isSelected) item.classList.add('is-selected');
+
+    const cardHeader = document.createElement('div');
+    cardHeader.className = 'hud-card-header';
+    const categoryBadge = document.createElement('span');
+    categoryBadge.className = 'hud-card-category';
+    const categoryName = String(card.kategori);
+    const categoryKey = hudCopy.categories.icons[categoryName as keyof typeof hudCopy.categories.icons] as CategoryIconKey | undefined;
+    const categoryIcon = categoryKey ? categoryIconAssets[categoryKey] : undefined;
+    if (categoryIcon) {
+      const icon = document.createElement('img');
+      icon.src = categoryIcon;
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+      categoryBadge.append(icon);
+    }
+    const categoryLabel = hudCopy.categories.labels[categoryName as keyof typeof hudCopy.categories.labels] ?? categoryName;
+    categoryBadge.append(document.createTextNode(categoryLabel));
+    const cost = document.createElement('span');
+    cost.className = 'hud-card-cost';
+    cost.textContent = `${hudCopy.copy.coin} ${biayaKartu(index) ?? hudCopy.copy.unavailableCost}`;
+    cost.setAttribute('aria-label', `${hudCopy.copy.cost}: ${biayaKartu(index) ?? hudCopy.copy.unavailableCost} poin`);
+    cardHeader.append(cost, categoryBadge);
+
+    const artwork = document.createElement('div');
+    artwork.className = 'hud-card-artwork';
+    if (categoryIcon) {
+      const artworkIcon = document.createElement('img');
+      artworkIcon.src = categoryIcon;
+      artworkIcon.alt = '';
+      artworkIcon.setAttribute('aria-hidden', 'true');
+      artwork.append(artworkIcon);
+    }
     const title = document.createElement('h3');
+    title.className = 'game-card-title-ribbon';
     title.textContent = card.nama;
     const description = document.createElement('p');
+    description.className = 'hud-card-description';
     description.textContent = card.deskripsi;
-    const costLabel = document.createElement('p');
-    costLabel.textContent = `${hudCopy.copy.cost}: ${biayaKartu(index) ?? hudCopy.copy.unavailableCost} poin`;
-    const cellLabel = document.createElement('label');
-    cellLabel.className = 'hud-preview-cell-label';
-    const selectId = `preview-cell-${index}`;
-    cellLabel.htmlFor = selectId;
-    cellLabel.textContent = 'Sel untuk pratinjau';
-    const cellSelect = document.createElement('select');
-    cellSelect.id = selectId;
-    cellSelect.className = 'hud-preview-cell';
-    const openCells = BUILDABLE_CELLS.filter((cell) => state.papan.ubin[cell] === null || state.papan.ubin[cell] === undefined);
-    for (const cell of openCells) {
-      const option = document.createElement('option');
-      option.value = String(cell);
-      option.textContent = labelCell(cell);
-      cellSelect.append(option);
+    const horizons = document.createElement('ol');
+    horizons.className = 'hud-card-horizons';
+    horizons.setAttribute('aria-label', 'Pratinjau dampak');
+    for (const horizon of hudCopy.copy.previewHorizons) {
+      const point = document.createElement('li');
+      point.textContent = horizon;
+      horizons.append(point);
     }
-    const defaultCell = firstOpenBuildableCell(state);
-    if (defaultCell !== null) cellSelect.value = String(defaultCell);
-    cellSelect.disabled = openCells.length === 0;
-    if (openCells.length === 0) {
-      const noCell = document.createElement('p');
-      noCell.className = 'hud-preview-reason';
-      noCell.textContent = 'Tidak ada sel kosong yang dapat dibangun untuk pratinjau.';
-      item.append(noCell);
-    }
-    const previewButton = document.createElement('button');
-    previewButton.type = 'button';
-    previewButton.className = 'hud-preview-button';
-    previewButton.textContent = 'Pratinjau dampak';
-    previewButton.disabled = defaultCell === null;
-    previewButton.addEventListener('click', () => {
-      const cell = Number(cellSelect.value);
-      selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell });
+    const footer = document.createElement('div');
+    footer.className = 'hud-card-footer';
+    const selectButton = document.createElement('button');
+    selectButton.type = 'button';
+    selectButton.className = 'hud-action-button';
+    selectButton.textContent = isSelected ? hudCopy.copy.placeCard : hudCopy.copy.selectCard;
+    selectButton.disabled = !availability.available || firstOpenBuildableCell(state) === null;
+    selectButton.setAttribute('aria-pressed', String(isSelected));
+    selectButton.addEventListener('click', () => {
+      if (!availability.available) return;
+      const cell = firstOpenBuildableCell(options.getState());
+      if (item.classList.contains('is-selected') && cell !== null) {
+        audio.playClick();
+        if (options.dispatch({ type: 'MAIN_KARTU', kartuIdx: index, selIdx: cell })) {
+          audio.playConfirm();
+          onDeselect(index);
+          options.onStateChange();
+        }
+      } else {
+        onSelect(index);
+        if (cell !== null) selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell });
+        for (const other of list.querySelectorAll<HTMLElement>('.hud-card')) {
+          const active = other === item;
+          other.classList.toggle('is-selected', active);
+          const button = other.querySelector<HTMLButtonElement>('.hud-card-footer button');
+          button?.setAttribute('aria-pressed', String(active));
+          if (button) button.textContent = active ? hudCopy.copy.placeCard : hudCopy.copy.selectCard;
+        }
+      }
     });
-    cellSelect.addEventListener('change', () => {
-      const cell = Number(cellSelect.value);
-      selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell });
-    });
-    const play = document.createElement('button');
-    play.type = 'button';
-    play.className = 'hud-action-button';
-    play.textContent = hudCopy.copy.playPolicy;
-    play.disabled = !availability.available || defaultCell === null;
-    item.append(title, description, costLabel, cellLabel, cellSelect, previewButton);
-    if (card.kenapa_penting) item.append(makeCopyBlock('Kenapa penting', card.kenapa_penting));
-    if (card.kondisi) item.append(makeCopyBlock('Kondisi dan konsekuensi', card.kondisi));
-    appendEffectExplanations(item, card.efek);
+    footer.append(selectButton);
+    item.append(cardHeader, artwork, title, description, horizons, footer);
     if (!availability.available) {
       item.classList.add('hud-card-unavailable');
       const reason = document.createElement('p');
       reason.textContent = availability.reason ?? hudCopy.copy.cardUnavailable;
       item.append(reason);
     }
-    item.append(play);
-    play.addEventListener('click', () => {
-      const cell = Number(cellSelect.value);
-      if (options.dispatch({ type: 'MAIN_KARTU', kartuIdx: index, selIdx: cell })) options.onStateChange();
-    });
     list.append(item);
+    if (isSelected) {
+      const cell = firstOpenBuildableCell(state);
+      if (cell !== null) selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell });
+    }
+    item.addEventListener('click', (event) => {
+      if ((event.target as HTMLElement).closest('button, select, summary, a')) return;
+      if (availability.available) selectButton.click();
+    });
+    item.addEventListener('mouseenter', () => {
+      if (availability.available) {
+        const cell = firstOpenBuildableCell(options.getState());
+        if (cell !== null) selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell });
+      }
+    });
+    item.addEventListener('mouseleave', () => {
+      if (selectedCardIdx !== index) dismissPreview();
+    });
+    selectButton.addEventListener('focus', () => {
+      if (availability.available) {
+        const cell = firstOpenBuildableCell(options.getState());
+        if (cell !== null) selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell });
+      }
+    });
   }
 }
 
@@ -485,18 +703,24 @@ function renderActions(
   state: GameState,
   options: HudOptions,
   selectCandidate: (candidate: PreviewCandidate) => void,
+  audio: AudioController,
 ): void {
   list.replaceChildren();
   for (const action of actions.aksi) {
     const item = document.createElement('li');
-    item.className = 'hud-card';
+    item.className = 'hud-card hud-card--action game-playing-card';
+    item.dataset.action = action.id;
+    const badge = document.createElement('span');
+    badge.className = 'hud-action-card-id';
+    badge.textContent = action.id;
     const title = document.createElement('h3');
     title.textContent = action.nama;
     const description = document.createElement('p');
     description.textContent = action.deskripsi;
     const costLabel = document.createElement('p');
-    costLabel.textContent = `${hudCopy.copy.cost}: ${biayaAksi(action.id) ?? hudCopy.copy.unavailableCost} poin`;
-    item.append(title, description, costLabel);
+    costLabel.className = 'hud-card-cost';
+    costLabel.textContent = `${hudCopy.copy.coin} ${biayaAksi(action.id) ?? hudCopy.copy.unavailableCost}`;
+    item.append(badge, title, description, costLabel);
     if (action.kenapa_penting) item.append(makeCopyBlock('Kenapa penting', action.kenapa_penting));
     if (action.id === 'ACT04') item.append(makeCopyBlock('Perubahan meter', 'Aksi ini tidak mengubah meter.'));
     else appendEffectExplanations(item, action.efek);
@@ -522,7 +746,11 @@ function renderActions(
       if (availability.available) allUnavailable = false;
       item.append(button);
       button.addEventListener('click', () => {
-        if (options.dispatch({ type: 'MAIN_AKSI', aksiId: action.id, ...(cardIndex === undefined ? {} : { kartuIdx: cardIndex }) })) options.onStateChange();
+        audio.playClick();
+        if (options.dispatch({ type: 'MAIN_AKSI', aksiId: action.id, ...(cardIndex === undefined ? {} : { kartuIdx: cardIndex }) })) {
+          audio.playConfirm();
+          options.onStateChange();
+        }
       });
     }
     if (allUnavailable) {

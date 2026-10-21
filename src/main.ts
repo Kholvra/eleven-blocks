@@ -76,7 +76,9 @@ if (!supportsWebGL2()) {
   }
   machine = createGameMachine(engine.getState().fase);
 
-  setupScene(app, () => engine.getState(), undefined, models);
+  setupScene(app, () => engine.getState(), (selIdx) => {
+    window.dispatchEvent(new CustomEvent('board-tile-click', { detail: { selIdx } }));
+  }, models);
 
   const completed = loadResult.status === 'valid' && loadResult.state.ronde === 10 &&
     ['ringkasan', 'laporan', 'tiket'].includes(loadResult.state.fase);

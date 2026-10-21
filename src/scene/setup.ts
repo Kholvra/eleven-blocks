@@ -1,12 +1,11 @@
-import { AmbientLight, Color, DirectionalLight, OrthographicCamera, Scene, Vector3, WebGLRenderer } from 'three';
+import { AmbientLight, Color, DirectionalLight, OrthographicCamera, Scene, Vector3, WebGLRenderer, type Object3D } from 'three';
+import { cellAtPointer, isPlacementCellAvailable } from './placement';
 import buildableCells from '../data/board.json';
 import type { GameState } from '../game/types';
 import { createBoardGrid } from './grid';
-import { cellAtPointer } from './placement';
 import { createBuildingLayer } from './buildings';
 import { createDistrictIdentity } from './district';
 import { createAdaptiveQuality } from './perf';
-import type { Object3D } from 'three';
 
 export function setupScene(
   root: HTMLElement,
@@ -26,14 +25,15 @@ export function setupScene(
   debugOutput.textContent = 'Mengukur kinerja papan…';
   root.append(debugOutput);
   const adaptiveQuality = createAdaptiveQuality(renderer, initialPixelRatio, debugOutput.hidden ? null : debugOutput);
-  const pageColor = getComputedStyle(document.documentElement).getPropertyValue('--color-page').trim();
-  const surfaceColor = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim();
-  const airColor = getComputedStyle(document.documentElement).getPropertyValue('--color-meter-air').trim();
-  const accessColor = getComputedStyle(document.documentElement).getPropertyValue('--color-meter-access').trim();
-  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--color-meter-green').trim();
-  const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim();
-  const focusColor = getComputedStyle(document.documentElement).getPropertyValue('--color-focus').trim();
-  renderer.setClearColor(new Color(pageColor));
+  const rootStyles = getComputedStyle(document.documentElement);
+  const pageColor = rootStyles.getPropertyValue('--color-page').trim();
+  const surfaceColor = rootStyles.getPropertyValue('--color-surface').trim();
+  const airColor = rootStyles.getPropertyValue('--color-meter-air').trim();
+  const accessColor = rootStyles.getPropertyValue('--color-meter-access').trim();
+  const accentColor = rootStyles.getPropertyValue('--color-meter-green').trim();
+  const borderColor = rootStyles.getPropertyValue('--color-border').trim();
+  const focusColor = rootStyles.getPropertyValue('--color-focus').trim();
+  renderer.setClearColor(new Color(rootStyles.getPropertyValue('--color-sky').trim() || '#bce9f8'));
   renderer.domElement.setAttribute('role', 'group');
   renderer.domElement.tabIndex = 0;
   renderer.domElement.setAttribute(
@@ -74,8 +74,7 @@ export function setupScene(
     distance * Math.sin(pitch),
     distance * Math.cos(pitch) * Math.cos(yaw),
   );
-  camera.lookAt(new Vector3(0, 0, 0));
-
+  camera.lookAt(new Vector3(0, 0.15, 0));
   const buildable: Record<number, true> = {};
   for (const cellIndex of buildableCells) buildable[cellIndex] = true;
   let logicalCellIndex = buildableCells[0] ?? 0;
@@ -102,9 +101,10 @@ export function setupScene(
 
   function updateFocus(event: PointerEvent): void {
     lastPointerEvent = event;
-    focusedCell = cellAtPointer(event, renderer.domElement, camera, grid.tiles);
-    if (focusedCell !== null) logicalCellIndex = focusedCell;
-    grid.updateFocus(focusedCell, getState().papan.ubin);
+    const hitCell = cellAtPointer(event, renderer.domElement, camera, grid.tiles);
+    focusedCell = hitCell !== null && isPlacementCellAvailable(hitCell, getState().papan.ubin) ? hitCell : null;
+    if (hitCell !== null) logicalCellIndex = hitCell;
+    grid.updateFocus(hitCell, getState().papan.ubin);
     render();
   }
 
@@ -125,7 +125,7 @@ export function setupScene(
     render();
   });
 
-  renderer.domElement.addEventListener('keydown', (event) => {
+  renderer.domElement.addEventListener('keydown', (event: KeyboardEvent) => {
     const row = Math.floor(logicalCellIndex / 8);
     const column = logicalCellIndex % 8;
     let nextRow = row;
@@ -144,13 +144,14 @@ export function setupScene(
       case 'ArrowRight':
         nextColumn = Math.min(7, column + 1);
         break;
-      case 'Enter':
       case ' ':
-        if (!onPlace) return;
+      case 'Enter': {
+        if (!onPlace || !isPlacementCellAvailable(logicalCellIndex, getState().papan.ubin)) return;
         onPlace(logicalCellIndex);
         event.preventDefault();
         render();
         return;
+      }
       case 'Escape':
         lastPointerEvent = null;
         focusedCell = null;
@@ -169,7 +170,7 @@ export function setupScene(
     render();
   });
 
-  renderer.domElement.addEventListener('pointerup', (event) => {
+  renderer.domElement.addEventListener('pointerup', (event: PointerEvent) => {
     updateFocus(event);
     const cellIndex = focusedCell;
     if (cellIndex !== null && onPlace) {
@@ -183,7 +184,7 @@ export function setupScene(
     const width = Math.max(1, bounds.width);
     const height = Math.max(1, bounds.height);
     const aspect = width / height;
-    const halfHeight = Math.max(6, 6.4 / aspect);
+    const halfHeight = Math.max(7.2, 7.4 / aspect);
     camera.left = -halfHeight * aspect;
     camera.right = halfHeight * aspect;
     camera.top = halfHeight;

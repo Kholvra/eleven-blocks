@@ -33,6 +33,18 @@ const MODEL_BY_CATEGORY: Record<string, string> = {
   ekonomi: 'building',
 };
 
+const MODEL_BY_CARD_ID: Record<string, string> = {
+  K01: 'bicycle',
+  K02: 'busStop',
+  K04: 'bus',
+  K08: 'park',
+  K09: 'recycleBin',
+  K10: 'tree',
+  K15: 'market',
+  K16: 'market',
+};
+
+
 const CARD_BY_INDEX: Record<number, CardVisual> = {};
 for (const card of cardsData.kebijakan) {
   CARD_BY_INDEX[card.idx - 1] = { id: card.id, category: card.kategori };
@@ -86,7 +98,7 @@ export function createBuildingLayer(models: ReadonlyMap<string, Object3D>, tiles
   function visualForCell(cardIndex: number, tile: BoardTile): CellVisual | null {
     const card = CARD_BY_INDEX[cardIndex];
     if (!card) return null;
-    const modelKey = MODEL_BY_CATEGORY[card.category];
+    const modelKey = MODEL_BY_CARD_ID[card.id] ?? MODEL_BY_CATEGORY[card.category];
     const bounds = modelKey ? boundsByModel[modelKey] : undefined;
     const modelParts = modelKey ? partsByModel[modelKey] : undefined;
     if (!modelKey || !bounds || !modelParts?.length) return null;
@@ -112,7 +124,7 @@ export function createBuildingLayer(models: ReadonlyMap<string, Object3D>, tiles
           continue;
         }
         const card = Number.isInteger(cardIndex) ? CARD_BY_INDEX[cardIndex as number] : undefined;
-        const nextModelKey = card ? MODEL_BY_CATEGORY[card.category] : undefined;
+        const nextModelKey = card ? (MODEL_BY_CARD_ID[card.id] ?? MODEL_BY_CATEGORY[card.category]) : undefined;
         const previous = cells[index];
         if (!card || previous.cardIndex !== cardIndex || previous.cardId !== card.id || previous.modelKey !== nextModelKey ||
           !boundsByModel[nextModelKey ?? ''] || !partsByModel[nextModelKey ?? '']?.length) {
