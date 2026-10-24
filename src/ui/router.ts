@@ -98,7 +98,7 @@ export function createScreenRouter(
     screen.append(heading, description, soundToggle);
     if (phase === 'laporan') {
       const results = document.createElement('section');
-      results.className = 'results-content';
+      results.className = 'results-content ui-panel';
       results.setAttribute('aria-labelledby', 'results-heading');
 
       const resultHeading = document.createElement('h2');
@@ -144,7 +144,7 @@ export function createScreenRouter(
     }
     if (phase === 'menu') {
       const actions = document.createElement('div');
-      actions.className = 'menu-actions';
+      actions.className = 'menu-actions ui-panel';
 
       const start = document.createElement('button');
       start.className = 'menu-action';

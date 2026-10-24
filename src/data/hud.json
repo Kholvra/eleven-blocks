@@ -1,9 +1,9 @@
 {
   "meter": {
-    "udara": { "label": "Udara", "symbol": "◌", "factIds": ["pm25-kota-global", "pm25-who-it1"] },
-    "akses": { "label": "Akses & Mobilitas", "symbol": "↔", "factIds": ["akses-transportasi-publik", "akses-ruang-publik"] },
-    "hijau": { "label": "Ruang Hijau", "symbol": "♧", "factIds": ["rth-jakarta"] },
-    "warga": { "label": "Kesejahteraan", "symbol": "⌂", "factIds": ["pekerja-informal"] }
+    "udara": { "label": "Udara", "pendek": "Udara", "symbol": "◌", "factIds": ["pm25-kota-global", "pm25-who-it1"] },
+    "akses": { "label": "Akses & Mobilitas", "pendek": "Akses", "symbol": "↔", "factIds": ["akses-transportasi-publik", "akses-ruang-publik"] },
+    "hijau": { "label": "Ruang Hijau", "pendek": "Hijau", "symbol": "♧", "factIds": ["rth-jakarta"] },
+    "warga": { "label": "Kesejahteraan", "pendek": "Warga", "symbol": "⌂", "factIds": ["pekerja-informal"] }
   },
   "categories": {
     "labels": {
@@ -15,16 +15,6 @@
       "energi": "Energi",
       "permukiman": "Permukiman",
       "ekonomi": "Ekonomi"
-    },
-    "icons": {
-      "transport": "permukiman",
-      "tata-guna-lahan": "permukiman",
-      "air": "air",
-      "sampah": "sampah",
-      "hijau": "permukiman",
-      "energi": "energi",
-      "permukiman": "permukiman",
-      "ekonomi": "permukiman"
     }
   },
   "phase": [
@@ -37,54 +27,52 @@
   "copy": {
     "round": "Ronde",
     "budget": "Anggaran",
-    "hand": "Kartu di tangan",
-    "deck": "Tumpukan Kartu",
     "news": "Berita Kota",
-    "source": "Sumber data",
+
     "disclaimer": "Meter adalah skala internal permainan; model sederhana ini bukan ukuran kondisi kota nyata atau prediksi. Fakta bersumber ditampilkan terpisah sebagai konteks, bukan dasar meter.",
     "noNews": "Belum ada berita kota.",
     "invalidState": "Status permainan tidak terbaca. Muat ulang halaman.",
     "advance": "Lanjutkan ke tahap berikutnya",
+    "advanceShort": "Lanjutkan",
     "finishRound": "Selesaikan ronde",
     "finish": "Selesaikan ronde 10",
     "viewReport": "Lihat laporan kota",
     "accessibleMeter": "Meter {label}: {value}",
-    "unavailableSource": "Sumber data tidak tersedia.",
+
     "unavailableCost": "Biaya tidak tersedia.",
     "cardUnavailable": "Kartu tidak tersedia.",
     "policy": "Kartu kebijakan",
     "actions": "Kartu aksi",
-    "cost": "Biaya",
-    "coin": "🪙",
-    "selectCard": "Pilih kartu",
-    "placeCard": "TEMPATKAN KE UBIN",
-    "deselectCard": "Batalkan pilihan",
-    "previewHorizons": ["Sekarang", "+5 Ronde", "Akhir"],
-    "useAction": "Gunakan {name}",
+    "cancel": "Batalkan",
+    "deselectCard": "Batalkan",
+    "cardAriaSelect": "Pilih {name}, kategori {category}, biaya {cost} poin.",
+    "cardAriaPlace": "Tempatkan {name}. Klik lagi untuk menaruhnya di petak kosong pertama.",
+    "cardAriaUnavailable": "{name} tidak tersedia. {reason}",
+    "cardAriaAction": "Gunakan {name}. Biaya {cost} poin.",
+    "exchangeTitle": "Tukar kartu untuk Studi Banding",
+    "exchangeBody": "Pilih satu kartu di tangan yang akan ditukar dengan kartu baru.",
+    "exchangeEmpty": "Tidak ada kartu di tangan yang bisa ditukar.",
     "exchangeCard": "Tukar {card}",
+    "actionFailed": "Aksi belum bisa dijalankan. Coba lagi.",
     "eventNarrative": "Peristiwa ronde ini",
     "eventInteractive": "Peristiwa dengan pilihan",
     "cellEmpty": "Petak {code} kosong.",
     "cellOccupied": "Petak {code} ditempati {card}.",
     "statusLabel": "Status permainan",
-    "meterPanel": "4 Meter Kota",
     "phaseSequence": "Urutan fase ronde",
     "startRound": "Mulai ronde",
     "board": "Papan kota",
     "cardList": "Daftar kartu",
-    "emptyHand": "Tidak ada kartu di tangan.",
     "moneyTitle": "Anggaran",
     "level": "Level",
     "trends": "Tren Dampak",
     "resources": "4 Meter Kota",
     "events": "Berita Kota",
     "deckTitle": "Tumpukan Kartu",
-    "actionCards": "Kartu Aksi",
     "sound": "Suara",
     "accessibility": "Aksesibilitas",
     "howToPlay": "Cara Main",
     "remainingRounds": "Ronde tersisa",
-    "threshold": "Ambang meter",
     "closeSelection": "Batalkan pilihan kartu"
   }
 }

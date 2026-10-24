@@ -19,7 +19,7 @@ export function mountAccessibilityControls(root: HTMLElement): void {
 
   const dialogId = `accessibility-dialog-title-${nextDialogId++}`;
   const dialog = document.createElement('dialog');
-  dialog.className = 'accessibility-dialog';
+  dialog.className = 'accessibility-dialog ui-panel';
   dialog.setAttribute('aria-labelledby', dialogId);
 
   const heading = document.createElement('h2');

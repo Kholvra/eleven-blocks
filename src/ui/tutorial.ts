@@ -53,7 +53,7 @@ export function createTutorialSteps(): HTMLOListElement {
 
 export function createContextualTip(context: TutorialTipContext): HTMLDetailsElement {
   const tip = document.createElement('details');
-  tip.className = 'tutorial-tip';
+  tip.className = 'tutorial-tip ui-panel';
   tip.name = 'tutorial-tips';
   const summary = document.createElement('summary');
   const summaryLabel = document.createElement('span');
@@ -67,7 +67,7 @@ export function createContextualTip(context: TutorialTipContext): HTMLDetailsEle
 
 export function createTutorialGuide(onFinish: () => void): HTMLElement {
   const guide = document.createElement('section');
-  guide.className = 'tutorial-guide';
+  guide.className = 'tutorial-guide ui-panel';
   guide.setAttribute('aria-live', 'polite');
   guide.setAttribute('aria-atomic', 'true');
 
