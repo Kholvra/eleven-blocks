@@ -1,4 +1,6 @@
 import balance from '../data/balance.json';
+import events from '../data/events.json';
+import eventConditions from '../data/event-conditions.json';
 import actions from '../data/actions.json';
 import cards from '../data/cards.json';
 import { allowedTransitions } from './machine';
@@ -7,23 +9,15 @@ import { biayaAksi, biayaKartu, firstOpenBuildableCell, kodeKartu, statusAksi, s
 import { applyMeterEffect } from './meters';
 import { scheduleEffects, takeDueEffects } from './pending';
 import { drawHand, exchangePolicy, finishHand } from './deck';
-import type { Efek, GameState, Phase, TahapRonde } from './types';
-const nextStage: Record<TahapRonde, TahapRonde | null> = {
-  berita: 'tangan',
-  tangan: 'resolusi',
-  resolusi: 'reaksi',
-  reaksi: 'transisi',
-  transisi: null,
-};
+import type { Efek, GameState, Phase } from './types';
 
 export type GameAction =
   | { type: 'TRANSISI_FASE'; fase: Phase }
-  | { type: 'PROSES_TAHAP_RONDE' }
   | { type: 'SELESAI_RONDE' }
-  | { type: 'TEMPATKAN_KEBIJAKAN'; kartuIdx: number; selIdx: number }
+  | { type: 'LEWATI_RONDE' }
+  | { type: 'PILIH_EVENT'; eventId: string; pilihanId: string }
   | { type: 'MAIN_KARTU'; kartuIdx: number; selIdx?: number }
   | { type: 'MAIN_AKSI'; aksiId: string; kartuIdx?: number }
-  | { type: 'TERAPKAN_HUJAN_EKSTREM' }
   | { type: 'SETELAN_AUDIO'; aktif: boolean }
   | { type: 'SIMPAN_TIKET'; teks: [string, string, string]; url: string; nama?: string };
 
@@ -38,6 +32,10 @@ export function createGameEngine(
   now: () => number = Date.now,
 ): GameEngine {
   let state = structuredClone(initialState);
+  if (reconcileSavedRound(state)) {
+    state.waktuSimpan = now();
+    onStateChange?.(state);
+  }
 
   function commit(nextState: GameState): boolean {
     nextState.waktuSimpan = now();
@@ -49,47 +47,27 @@ export function createGameEngine(
   return {
     getState: () => state,
     dispatch(action) {
-      if (action.type === 'TEMPATKAN_KEBIJAKAN') {
-        if (
-          state.fase !== 'ronde' ||
-          state.tahapRonde !== 'tangan' ||
-          state.kartuDimainkanRondeIni !== null
-        ) {
-          return false;
-        }
-
-        const { kartuIdx, selIdx } = action;
-        const cardCode = kodeKartu(kartuIdx);
-        if (!Number.isInteger(kartuIdx) || kartuIdx < 0 || cardCode === undefined ||
-            !state.tangan.includes(kartuIdx) || state.milik.includes(kartuIdx) || state.papan.ubin.includes(kartuIdx)) {
-          return false;
-        }
-        if (
-          !Number.isInteger(selIdx) ||
-          selIdx < 0 ||
-          selIdx >= state.papan.ubin.length ||
-          selIdx >= state.papan.lebar * state.papan.tinggi ||
-          !isBuildableCell(selIdx) ||
-          state.papan.ubin[selIdx] !== null
-        ) {
-          return false;
-        }
-
-        const nextState = structuredClone(state);
-        nextState.papan.ubin[selIdx] = kartuIdx;
-        nextState.tangan = nextState.tangan.filter((cardIndex) => cardIndex !== kartuIdx);
-        nextState.milik.push(kartuIdx);
-        nextState.kartuDimainkanRondeIni = cardCode;
-        return commit(nextState);
-      }
       if (action.type === 'MAIN_KARTU') {
         const nextState = playPolicy(state, action.kartuIdx, action.selIdx);
         if (nextState === null) return false;
+        resolveRoundAndShowRecap(nextState);
         return commit(nextState);
       }
       if (action.type === 'MAIN_AKSI') {
         const nextState = playAction(state, action.aksiId, action.kartuIdx);
         if (nextState === null) return false;
+        resolveRoundAndShowRecap(nextState);
+        return commit(nextState);
+      }
+      if (action.type === 'PILIH_EVENT') {
+        const nextState = chooseScheduledEvent(state, action.eventId, action.pilihanId);
+        if (nextState === null) return false;
+        return commit(nextState);
+      }
+      if (action.type === 'LEWATI_RONDE') {
+        if (state.fase !== 'ronde' || state.tahapRonde !== 'tangan' || state.kartuDimainkanRondeIni !== null) return false;
+        const nextState = structuredClone(state);
+        resolveRoundAndShowRecap(nextState);
         return commit(nextState);
       }
       if (action.type === 'SIMPAN_TIKET') {
@@ -108,75 +86,228 @@ export function createGameEngine(
         else delete nextState.nama;
         return commit(nextState);
       }
-
       if (action.type === 'SETELAN_AUDIO') {
         const nextState = structuredClone(state);
         nextState.setelan.audio = action.aktif;
         return commit(nextState);
       }
-
-      if (action.type === 'PROSES_TAHAP_RONDE') {
-        if (state.fase !== 'ronde') return false;
-        const stage = nextStage[state.tahapRonde];
-        if (stage === undefined || stage === null) return false;
-        const nextState = structuredClone(state);
-        nextState.tahapRonde = stage;
-        if (stage === 'tangan') drawHand(nextState);
-        if (stage === 'resolusi') resolveRoundEffects(nextState);
-        return commit(nextState);
-      }
-
-      if (action.type === 'TERAPKAN_HUJAN_EKSTREM') {
-        if (state.fase !== 'event' || state.eventAktif?.id !== 'E01' || state.eventTerpakai.includes('E01')) return false;
-        const nextState = structuredClone(state);
-        const protectedFromRain = nextState.milik.some((index) => cards.kebijakan[index]?.id === 'K07') ||
-          nextState.kartuDimainkanRondeIni === 'ACT03';
-        const rain = balance.event.hujanEkstrem;
-        const damageFactor = protectedFromRain ? (100 - rain.mitigasiPersen) / 100 : 1;
-        const result = applyMeterEffect(nextState.meter, {
-          akses: rain.kerusakan.akses * damageFactor,
-          warga: rain.kerusakan.warga * damageFactor,
-        });
-        nextState.meter = result.meter;
-        nextState.eventTerpakai.push('E01');
-        nextState.catatan.push({
-          ronde: nextState.ronde,
-          kartuIdx: null,
-          delta: result.delta,
-          meter: { ...nextState.meter },
-          anggaran: nextState.anggaran,
-          eventId: 'E01',
-        });
-        return commit(nextState);
-      }
-
       if (action.type === 'SELESAI_RONDE') {
-        if (state.fase !== 'ronde' || state.tahapRonde !== 'transisi' || state.ronde < 1 || state.ronde > 10) return false;
+        if (state.fase !== 'ringkasan' || state.tahapRonde !== 'transisi' || state.ronde < 1 || state.ronde > 10) return false;
 
         const nextState = structuredClone(state);
         finishHand(nextState);
-        nextState.tahapRonde = 'berita';
         nextState.kartuDimainkanRondeIni = null;
         if (nextState.ronde === 10) {
           nextState.fase = 'laporan';
         } else {
           nextState.anggaran += balance.ekonomi.pendapatan_per_ronde;
           nextState.ronde += 1;
-          nextState.fase = 'ronde';
+          beginRound(nextState);
         }
         return commit(nextState);
       }
-
+      if (action.type !== 'TRANSISI_FASE') return false;
+      if (action.fase === 'ronde') {
+        if (state.fase !== 'menu' && state.fase !== 'tutorial') return false;
+        const nextState = structuredClone(state);
+        beginRound(nextState);
+        return commit(nextState);
+      }
+      if (action.fase === 'event' || action.fase === 'ringkasan' || action.fase === 'laporan') return false;
       if (!allowedTransitions[state.fase].includes(action.fase)) return false;
-      if (action.fase === 'laporan' && state.ronde < 10) return false;
-      if (state.fase === 'ringkasan' && action.fase === 'ronde' && state.ronde >= 10) return false;
 
       const nextState = structuredClone(state);
       nextState.fase = action.fase;
-      if (action.fase === 'ronde') nextState.tahapRonde = 'berita';
       return commit(nextState);
     },
   };
+}
+
+type DelayedGameEffect = { setelahRonde: number; efek: Efek; catatan?: string; syarat?: string };
+
+type EventChoice = {
+  id: string;
+  biaya: number;
+  efek: Efek;
+  penutup: string;
+  efek_kondisional?: Array<{ syarat: string; efek: Efek }>;
+  efek_tertunda?: DelayedGameEffect[];
+};
+
+type ScheduledEvent = {
+  id: string;
+  ronde: number;
+  jenis: 'interaktif' | 'naratif';
+  pilihan: EventChoice[];
+  jika_semua_pilihan_tidak_terjangkau?: string;
+};
+
+function scheduledEvent(round: number): ScheduledEvent | undefined {
+  return events.event.find((event) => event.ronde === round) as unknown as ScheduledEvent | undefined;
+}
+
+function allEventChoicesUnaffordable(event: ScheduledEvent, budget: number): boolean {
+  return event.pilihan.length > 0 && event.pilihan.every((choice) => choice.biaya > budget);
+}
+
+function beginRound(state: GameState): void {
+  const event = scheduledEvent(state.ronde);
+  state.tahapRonde = 'berita';
+  state.eventAktif = null;
+  if (event?.jenis === 'interaktif' && !state.eventTerpakai.includes(event.id)) {
+    if (allEventChoicesUnaffordable(event, state.anggaran) &&
+        event.jika_semua_pilihan_tidak_terjangkau === 'lewati_tanpa_efek') {
+      finishUnchosenEvent(state, event);
+      return;
+    }
+    state.fase = 'event';
+    state.eventAktif = { id: event.id, dipilih: null };
+    return;
+  }
+  state.fase = 'ronde';
+  state.tahapRonde = 'tangan';
+  if (state.tangan.length === 0) drawHand(state);
+}
+
+function finishUnchosenEvent(state: GameState, event: ScheduledEvent): void {
+  state.eventTerpakai.push(event.id);
+  state.eventAktif = null;
+  state.catatan.push({
+    ronde: state.ronde,
+    kartuIdx: null,
+    delta: {},
+    meter: { ...state.meter },
+    anggaran: state.anggaran,
+    eventId: event.id,
+    pilihanEvent: 'lewati_tanpa_efek',
+  });
+  if (state.kartuDimainkanRondeIni !== null) {
+    resolveRoundAndShowRecap(state);
+    return;
+  }
+  state.fase = 'ronde';
+  state.tahapRonde = 'tangan';
+  if (state.tangan.length === 0) drawHand(state);
+}
+
+function chooseScheduledEvent(state: GameState, eventId: string, choiceId: string): GameState | null {
+  const event = scheduledEvent(state.ronde);
+  const choice = event?.pilihan.find((item) => item.id === choiceId);
+  if (
+    state.fase !== 'event' ||
+    event?.jenis !== 'interaktif' ||
+    event.id !== eventId ||
+    state.eventAktif?.id !== eventId ||
+    state.eventTerpakai.includes(eventId) ||
+    choice === undefined ||
+    choice.biaya > state.anggaran
+  ) return null;
+
+  const nextState = structuredClone(state);
+  nextState.anggaran -= choice.biaya;
+  const delta: Efek = {};
+  const apply = (effect: Efek): void => {
+    const result = applyMeterEffect(nextState.meter, effect);
+    nextState.meter = result.meter;
+    addEffects(delta, result.delta);
+  };
+  apply(choice.efek);
+  const source = event.id;
+  const ownedCodes = new Set(nextState.milik.map((index) => cards.kebijakan[index]?.id)
+    .filter((id): id is string => id !== undefined));
+  for (const conditional of choice.efek_kondisional ?? []) {
+    if (evaluateCondition(source, conditional.syarat, ownedCodes) === true) apply(conditional.efek);
+  }
+  nextState.antrian = scheduleEffects(
+    nextState.antrian,
+    source,
+    nextState.ronde,
+    choice.efek_tertunda ?? [],
+    nextState.ronde,
+  );
+  nextState.eventTerpakai.push(event.id);
+  nextState.eventAktif = null;
+  nextState.catatan.push({
+    ronde: nextState.ronde,
+    kartuIdx: null,
+    delta,
+    meter: { ...nextState.meter },
+    anggaran: nextState.anggaran,
+    eventId: event.id,
+    pilihanEvent: choice.id,
+  });
+  if (nextState.kartuDimainkanRondeIni !== null) {
+    resolveRoundAndShowRecap(nextState);
+  } else {
+    nextState.fase = 'ronde';
+    nextState.tahapRonde = 'tangan';
+    if (nextState.tangan.length === 0) drawHand(nextState);
+  }
+  return nextState;
+}
+
+function addEffects(total: Efek, addition: Efek): void {
+  for (const [key, amount] of Object.entries(addition) as Array<[keyof Efek, number]>) {
+    const combined = (total[key] ?? 0) + amount;
+    if (combined === 0) delete total[key];
+    else total[key] = combined;
+  }
+}
+
+function resolveRoundAndShowRecap(state: GameState): void {
+  resolveRoundEffects(state);
+  state.fase = 'ringkasan';
+  state.tahapRonde = 'transisi';
+  state.eventAktif = null;
+}
+
+function reconcileSavedRound(state: GameState): boolean {
+  if (state.fase !== 'ronde' && state.fase !== 'event' && state.fase !== 'ringkasan') return false;
+  const event = scheduledEvent(state.ronde);
+  const eventResolved = event === undefined
+    ? undefined
+    : state.catatan.find((note) => note.ronde === state.ronde && note.eventId === event.id);
+  let changed = false;
+  if (event !== undefined && eventResolved && !state.eventTerpakai.includes(event.id)) {
+    state.eventTerpakai.push(event.id);
+    changed = true;
+  }
+  const roundResolved = state.catatan.find((note) => note.ronde === state.ronde && note.eventId === undefined);
+  if (roundResolved) {
+    changed ||= state.fase !== 'ringkasan' || state.tahapRonde !== 'transisi' || state.eventAktif !== null;
+    state.fase = 'ringkasan';
+    state.tahapRonde = 'transisi';
+    state.eventAktif = null;
+    return changed;
+  }
+  if (event?.jenis === 'interaktif' && !state.eventTerpakai.includes(event.id) && eventResolved === undefined) {
+    if (allEventChoicesUnaffordable(event, state.anggaran) &&
+        event.jika_semua_pilihan_tidak_terjangkau === 'lewati_tanpa_efek') {
+      finishUnchosenEvent(state, event);
+      return true;
+    }
+    changed ||= state.fase !== 'event' || state.tahapRonde !== 'berita' ||
+      state.eventAktif?.id !== event.id || state.eventAktif.dipilih !== null;
+    state.fase = 'event';
+    state.tahapRonde = 'berita';
+    state.eventAktif = { id: event.id, dipilih: null };
+    return changed;
+  }
+  if (state.kartuDimainkanRondeIni !== null) {
+    resolveRoundAndShowRecap(state);
+    return true;
+  }
+  if (state.tahapRonde === 'berita') {
+    beginRound(state);
+    return true;
+  }
+  changed ||= state.fase !== 'ronde' || state.tahapRonde !== 'tangan' || state.eventAktif !== null;
+  const needsHand = state.tahapRonde !== 'tangan';
+  state.fase = 'ronde';
+  state.tahapRonde = 'tangan';
+  state.eventAktif = null;
+  if (needsHand && state.tangan.length === 0) drawHand(state);
+  return changed || needsHand && state.tangan.length > 0;
 }
 
 function playPolicy(state: GameState, kartuIdx: number, requestedCell?: number): GameState | null {
@@ -217,7 +348,6 @@ function playAction(state: GameState, aksiId: string, kartuIdx?: number): GameSt
   if (aksiId === 'ACT04' && kartuIdx !== undefined && !exchangePolicy(nextState, kartuIdx)) return null;
   return nextState;
 }
-type DelayedCardEffect = { setelahRonde: number; efek: Efek; catatan?: string; syarat?: string };
 
 function resolveRoundEffects(state: GameState): void {
   const roundStart = { ...state.meter };
@@ -268,7 +398,7 @@ function resolveRoundEffects(state: GameState): void {
         state.antrian,
         playedCode,
         state.ronde,
-        effectData.tertunda as DelayedCardEffect[],
+        effectData.tertunda as DelayedGameEffect[],
         state.ronde,
       );
       applyDueEffects();
@@ -278,9 +408,10 @@ function resolveRoundEffects(state: GameState): void {
   for (const key of Object.keys(roundDelta) as Array<keyof Efek>) {
     if (roundDelta[key] === 0 || state.meter[key] === roundStart[key]) delete roundDelta[key];
   }
+  const cardIndex = playedCode === null ? -1 : cards.kebijakan.findIndex((card) => card.id === playedCode);
   state.catatan.push({
     ronde: state.ronde,
-    kartuIdx: playedCode?.startsWith('K') ? Number(playedCode.slice(1)) - 1 : null,
+    kartuIdx: cardIndex < 0 ? null : cardIndex,
     delta: roundDelta,
     meter: { ...state.meter },
     anggaran: state.anggaran,
@@ -289,6 +420,18 @@ function resolveRoundEffects(state: GameState): void {
 
 export function evaluateCondition(source: string, condition: string | undefined, owned: Set<string>): boolean | undefined {
   if (condition === undefined) return true;
+  const eventRules = eventConditions[source as keyof typeof eventConditions];
+  if (eventRules !== undefined) {
+    for (const rule of eventRules) {
+      if (rule.syarat !== condition) continue;
+      if (rule.operator === 'none') {
+        for (const card of rule.cards) if (owned.has(card)) return false;
+        return true;
+      }
+      for (const card of rule.cards) if (owned.has(card)) return true;
+      return false;
+    }
+  }
   switch (`${source}:${condition}`) {
     case 'K03:K04 tidak ada':
       return !owned.has('K04');

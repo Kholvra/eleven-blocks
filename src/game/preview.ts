@@ -87,34 +87,37 @@ export function hitungPreview(state: GameState, candidate: PreviewCandidate): Pr
     if (!playable) notes.push('Dana kurang; angka dihitung sebagai perkiraan, aksi tidak dapat dimainkan.');
 
     const jadwal = buildSchedule(source, state.ronde, initial);
-    const engine = createGameEngine(initial, undefined, () => initial.waktuSimpan);
-    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-    let simulated = engine.getState();
+    let simulated = createGameEngine(initial, undefined, () => initial.waktuSimpan).getState();
     const firstNote = simulated.catatan.slice(initial.catatan.length).at(-1);
     const baselineMeter = { ...initial.meter };
     const targetRounds = [state.ronde, Math.min(state.ronde + 5, 10), 10];
     const deltas: Efek[] = [firstNote?.delta ?? {}];
     const ownedCodes = ownedCodesFor(initial);
+    const skippedEventRounds = new Set<number>();
     const completeness = [!hasUnsupportedDue(initial.antrian, state.ronde, ownedCodes) && !hasUnsupportedCandidate(source, state.ronde, ownedCodes)];
     for (const target of targetRounds.slice(1)) {
       while (simulated.ronde < target) {
         const nextRound = createGameEngine(simulated, undefined, () => simulated.waktuSimpan);
-        nextRound.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-        nextRound.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-        nextRound.dispatch({ type: 'SELESAI_RONDE' });
+        if (!nextRound.dispatch({ type: 'SELESAI_RONDE' })) return invalid('Preview tidak dapat melanjutkan ronde.');
         simulated = structuredClone(nextRound.getState());
-        simulated.tahapRonde = 'tangan';
-        simulated.tangan = [];
+        if (simulated.fase === 'event' && simulated.eventAktif !== null) {
+          skippedEventRounds.add(simulated.ronde);
+          simulated.eventTerpakai.push(simulated.eventAktif.id);
+          simulated.eventAktif = null;
+        }
+        const nextHand = createGameEngine(simulated, undefined, () => simulated.waktuSimpan);
+        simulated = structuredClone(nextHand.getState());
         const resolve = createGameEngine(simulated, undefined, () => simulated.waktuSimpan);
-        resolve.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-        resolve.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+        if (!resolve.dispatch({ type: 'LEWATI_RONDE' })) return invalid('Preview tidak dapat menyelesaikan ronde simulasi.');
         simulated = resolve.getState();
       }
       const delta: Efek = {};
       for (const key of meterKeys) if (simulated.meter[key] !== baselineMeter[key]) delta[key] = simulated.meter[key] - baselineMeter[key];
       deltas.push(delta);
-      completeness.push(!hasUnsupportedDue(initial.antrian, target, ownedCodes) && !hasUnsupportedCandidate(source, target, ownedCodes));
+      const skippedInteractiveChoice = [...skippedEventRounds].some((round) => round <= target);
+      completeness.push(!skippedInteractiveChoice &&
+        !hasUnsupportedDue(initial.antrian, target, ownedCodes) &&
+        !hasUnsupportedCandidate(source, target, ownedCodes));
     }
     const horizons = horizonIds.map((id, index) => ({ id, label: horizonLabels[id], ronde: targetRounds[index] ?? 10, delta: deltas[index] ?? {}, lengkap: completeness[index] ?? true }));
     const tanpaPerubahan = horizons.every(({ delta }) => meterKeys.every((key) => delta[key] === undefined || delta[key] === 0));
