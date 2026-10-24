@@ -1,0 +1,21 @@
+{
+  "E01": [
+    {
+      "syarat": "K07 dan K08 tidak ada",
+      "operator": "none",
+      "cards": ["K07", "K08"]
+    },
+    {
+      "syarat": "K07 ada",
+      "operator": "any",
+      "cards": ["K07"]
+    }
+  ],
+  "E02": [
+    {
+      "syarat": "Jika K15 sudah dipasang",
+      "operator": "any",
+      "cards": ["K15"]
+    }
+  ]
+}
