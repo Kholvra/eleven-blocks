@@ -19,7 +19,7 @@ import type { GameAction } from '../game/engine';
 import type { AudioController } from '../audio/audio';
 import { actionIconFor, categoryIconFor, modelImageForAction, modelImageForCard } from './cardArt';
 
-import type { Efek, GameState, KunciMeter, TahapRonde } from '../game/types';
+import type { Efek, GameState, KunciMeter } from '../game/types';
 
 
 const meterIcons: Record<KunciMeter, string> = {
@@ -172,19 +172,6 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     meterNodes[key] = { root: chip, value, bar, delta };
   }
 
-  const phases = document.createElement('ol');
-  phases.className = 'hud-phases';
-  phases.setAttribute('aria-label', hudCopy.copy.phaseSequence);
-  const phaseNodes = {} as Record<TahapRonde, HTMLElement>;
-  for (const phase of hudCopy.phase) {
-    const phaseId = phase.id as TahapRonde;
-    const item = document.createElement('li');
-    item.className = 'phase-step ui-panel';
-    item.dataset.phase = phaseId;
-    item.textContent = phase.label;
-    phases.append(item);
-    phaseNodes[phaseId] = item;
-  }
 
   const news = document.createElement('section');
   news.className = 'hud-news game-events';
@@ -262,15 +249,6 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   const rail = document.createElement('div');
   rail.className = 'simple-rail';
   rail.append(cardList, actionList);
-  const deckCounter = document.createElement('span');
-  deckCounter.className = 'simple-deck';
-  deckCounter.setAttribute('aria-label', hudCopy.copy.deckTitle);
-  const deckIcon = document.createElement('span');
-  deckIcon.className = 'simple-deck-icon';
-  deckIcon.setAttribute('aria-hidden', 'true');
-  const deckValue = document.createElement('span');
-  deckValue.className = 'simple-deck-value';
-  deckCounter.append(deckIcon, deckValue);
   const deselectButton = document.createElement('button');
   deselectButton.type = 'button';
   deselectButton.className = 'simple-cancel';
@@ -283,10 +261,11 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   });
   const advance = document.createElement('button');
   advance.type = 'button';
-  advance.className = 'simple-advance';
+  advance.className = 'game-control-button game-round-advance ui-panel';
+  quickNav.prepend(advance);
   const footer = document.createElement('div');
   footer.className = 'simple-footer';
-  footer.append(deselectButton, advance, deckCounter);
+  footer.append(deselectButton);
   dockInner.append(rail, footer);
   dock.append(preview, dockInner);
   const clearSelection = (): void => {
@@ -335,20 +314,34 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   actionDialogCancel.textContent = hudCopy.copy.cancel;
   actionDialogCancel.addEventListener('click', () => actionDialog.close());
   actionDialog.append(actionDialogTitle, actionDialogBody, actionDialogChoices, actionDialogCancel);
+  let dismissedEventId: string | null = null;
+  const eventDialog = document.createElement('dialog');
+  eventDialog.id = `${settingsDialog.id}-decision`;
+  eventDialog.className = 'simple-action-dialog event-decision-dialog ui-panel';
+  eventDialog.setAttribute('aria-labelledby', `${eventDialog.id}-title`);
+  const eventDialogTitle = document.createElement('h2');
+  eventDialogTitle.id = `${eventDialog.id}-title`;
+  const eventDialogNarrative = document.createElement('p');
+  eventDialogNarrative.id = `${eventDialog.id}-narrative`;
+  eventDialog.setAttribute('aria-describedby', eventDialogNarrative.id);
+  const eventDialogChoices = document.createElement('div');
+  eventDialogChoices.className = 'simple-action-choices';
+  const eventDialogError = document.createElement('p');
+  eventDialogError.setAttribute('role', 'alert');
+  const eventDialogCancel = document.createElement('button');
+  eventDialogCancel.type = 'button';
+  eventDialogCancel.className = 'simple-cancel event-decision-close';
+  eventDialogCancel.textContent = hudCopy.copy.eventDecisionClose;
+  eventDialogCancel.addEventListener('click', () => eventDialog.close());
+  eventDialog.append(eventDialogTitle, eventDialogNarrative, eventDialogChoices, eventDialogError, eventDialogCancel);
 
   advance.addEventListener('click', () => {
     const state = options.getState();
-    const action = state.fase === 'event'
-      ? { type: 'TRANSISI_FASE', fase: 'ringkasan' } as const
-      : state.fase === 'ringkasan'
-        ? { type: 'TRANSISI_FASE', fase: 'laporan' } as const
-        : state.tahapRonde === 'transisi'
-          ? { type: 'SELESAI_RONDE' } as const
-          : { type: 'PROSES_TAHAP_RONDE' } as const;
+    if (state.fase !== 'ronde' || state.tahapRonde !== 'tangan' || state.kartuDimainkanRondeIni !== null) return;
     clearSelection();
-    if (options.dispatch(action)) options.onStateChange();
+    if (options.dispatch({ type: 'LEWATI_RONDE' })) options.onStateChange();
   });
-  hud.append(header, layout, phases, meters, dock, settingsDialog, helpDialog, actionDialog, disclaimer, live);
+  hud.append(header, layout, meters, dock, settingsDialog, helpDialog, actionDialog, eventDialog, disclaimer, live);
   container.append(hud);
 
   const placeSelectedCard = (cell: number): void => {
@@ -415,6 +408,66 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     if (!actionDialog.open) actionDialog.showModal();
   };
 
+  const getPendingEvent = (state: GameState) => {
+    const active = state.eventAktif;
+    if (state.fase !== 'event' || active === null || active.dipilih !== null) return undefined;
+    return events.event.find((event) => event.id === active.id && event.jenis === 'interaktif');
+  };
+
+  eventDialog.addEventListener('close', () => {
+    const event = getPendingEvent(options.getState());
+    if (event) {
+      dismissedEventId = event.id;
+      newsBody.querySelector<HTMLButtonElement>('.game-event-reopen')?.focus();
+      return;
+    }
+    document.querySelector<HTMLElement>('.screen:not([hidden]) > h1')?.focus();
+  });
+
+  const openEventDecision = (event: (typeof events.event)[number]): void => {
+    const current = options.getState();
+    if (current.fase !== 'event' || current.eventAktif === null ||
+        current.eventAktif.id !== event.id || current.eventAktif.dipilih !== null) return;
+
+    eventDialogTitle.textContent = event.judul;
+    eventDialogNarrative.textContent = event.narasi;
+    eventDialogError.textContent = '';
+    eventDialogChoices.replaceChildren();
+    const choices = document.createElement('fieldset');
+    choices.className = 'game-event-choices';
+    const legend = document.createElement('legend');
+    legend.textContent = hudCopy.copy.eventChoiceLegend;
+    choices.append(legend);
+    for (const choice of event.pilihan) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'game-event-choice';
+      const unaffordable = choice.biaya > current.anggaran;
+      button.disabled = unaffordable;
+      button.setAttribute('aria-label', `${choice.teks}. ${hudCopy.copy.eventChoiceCost.replace('{cost}', String(choice.biaya))}${unaffordable ? `. ${hudCopy.copy.eventChoiceUnaffordable}` : ''}`);
+      const text = document.createElement('span');
+      text.textContent = choice.teks;
+      const cost = document.createElement('span');
+      cost.className = 'game-event-choice-cost';
+      cost.textContent = `${hudCopy.copy.eventChoiceCost.replace('{cost}', String(choice.biaya))}${unaffordable ? ` · ${hudCopy.copy.eventChoiceUnaffordable}` : ''}`;
+      button.append(text, cost);
+      button.addEventListener('click', () => {
+        audio.playClick();
+        if (!options.dispatch({ type: 'PILIH_EVENT', eventId: event.id, pilihanId: choice.id })) {
+          eventDialogError.textContent = hudCopy.copy.eventChoiceFailed;
+          return;
+        }
+        audio.playConfirm();
+        eventDialog.close();
+        clearSelection();
+        options.onStateChange();
+      });
+      choices.append(button);
+    }
+    eventDialogChoices.append(choices);
+    if (!eventDialog.open) eventDialog.showModal();
+  };
+
   let renderedNewsRound = 0;
   let initialRender = true;
   let announcedNote = '';
@@ -434,17 +487,28 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
       error.hidden = true;
       hud.hidden = !gamePhases.includes(state.fase);
       if (hud.hidden) return;
+      dock.hidden = state.fase === 'event';
 
       roundItem.value.textContent = `${state.ronde}/10`;
       budgetItem.value.textContent = String(state.anggaran);
       budgetItem.value.setAttribute('aria-label', `${state.anggaran} ${hudCopy.copy.moneyTitle.toLowerCase()}`);
-      deckValue.textContent = String(state.deck.length);
-      deckCounter.setAttribute('aria-label', `${hudCopy.copy.deckTitle}: ${state.deck.length}`);
       soundButton.textContent = `${state.setelan.audio ? '🔊' : '🔇'} ${hudCopy.copy.sound}`;
       soundButton.setAttribute('aria-pressed', String(state.setelan.audio));
       const resetNewsScroll = renderedNewsRound !== state.ronde;
-      renderNews(newsBody, state.ronde, resetNewsScroll);
+      renderNews(newsBody, state, resetNewsScroll, () => {
+        const event = getPendingEvent(options.getState());
+        if (!event) return;
+        dismissedEventId = null;
+        openEventDecision(event);
+      });
       renderedNewsRound = state.ronde;
+      const pendingEvent = getPendingEvent(state);
+      if (pendingEvent) {
+        if (!eventDialog.open && dismissedEventId !== pendingEvent.id) openEventDecision(pendingEvent);
+      } else {
+        dismissedEventId = null;
+        if (eventDialog.open) eventDialog.close();
+      }
       const delta = latestDelta(state);
       for (const key of meterOrder) {
         const node = meterNodes[key];
@@ -463,11 +527,6 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
         else node.delta.setAttribute('aria-label', `${hudCopy.meter[key].label} ${node.delta.textContent}`);
       }
 
-      const activePhase = state.fase === 'ringkasan' ? 'transisi' : state.tahapRonde;
-      for (const [phase, item] of Object.entries(phaseNodes) as [TahapRonde, HTMLElement][]) {
-        if (phase === activePhase) item.setAttribute('aria-current', 'step');
-        else item.removeAttribute('aria-current');
-      }
       renderCards(cardList, state, options, (candidate, anchor) => {
         cancelPreviewHide();
         renderPreview(preview, candidate, state, anchor);
@@ -486,16 +545,13 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
         clearSelection();
       }, dismissPreview);
       deselectButton.hidden = selectedCardIdx === null;
-      advance.textContent = state.fase === 'ringkasan'
-        ? hudCopy.copy.viewReport
-        : state.tahapRonde === 'transisi'
-          ? state.ronde === 10 ? hudCopy.copy.finish : hudCopy.copy.finishRound
-          : hudCopy.copy.advanceShort;
-      advance.setAttribute('aria-label', state.fase === 'ringkasan'
-        ? hudCopy.copy.viewReport
-        : state.tahapRonde === 'transisi'
-          ? state.ronde === 10 ? hudCopy.copy.finish : hudCopy.copy.finishRound
-          : hudCopy.copy.advance);
+      footer.hidden = deselectButton.hidden;
+      const canSkipRound = state.fase === 'ronde' &&
+        state.tahapRonde === 'tangan' &&
+        state.kartuDimainkanRondeIni === null;
+      advance.hidden = !canSkipRound;
+      advance.textContent = hudCopy.copy.skipRound;
+      advance.setAttribute('aria-label', hudCopy.copy.skipRound);
 
       const note = state.catatan.at(-1);
       const noteKey = note && note.ronde === state.ronde ? `${note.ronde}:${state.catatan.length}` : '';
@@ -556,32 +612,70 @@ function formatDelta(delta: Efek): string {
   }).join(', ');
 }
 
-function renderNews(container: HTMLElement, round: number, resetScroll: boolean): void {
+function renderNews(
+  container: HTMLElement,
+  state: GameState,
+  resetScroll: boolean,
+  onReopen: () => void,
+): void {
   const previousScrollTop = container.scrollTop;
   container.replaceChildren();
-  const roundLabel = hudCopy.copy.eventRound;
-  let hasArticle = false;
-  for (let currentRound = 1; currentRound <= round; currentRound += 1) {
-    const event = events.event.find((item) => item.ronde === currentRound);
-    if (!event) continue;
-    hasArticle = true;
+  const visibleEvents = events.event
+    .filter((event) => event.ronde <= state.ronde)
+    .sort((first, second) => first.ronde - second.ronde);
+  if (visibleEvents.length === 0) {
+    const message = document.createElement('p');
+    message.textContent = hudCopy.copy.noNews;
+    container.append(message);
+  }
+
+  for (const event of visibleEvents) {
     const article = document.createElement('article');
     article.className = 'game-event-item ui-panel';
     const label = document.createElement('p');
     label.className = 'game-event-round';
-    label.textContent = roundLabel.replace('{round}', String(event.ronde));
+    label.textContent = hudCopy.copy.eventRound.replace('{round}', String(event.ronde));
     const title = document.createElement('h3');
     title.textContent = event.judul;
     const narrative = document.createElement('p');
     narrative.textContent = event.narasi;
     article.append(label, title, narrative);
+
+    let eventNote = undefined as GameState['catatan'][number] | undefined;
+    for (const note of state.catatan) {
+      if (note.ronde === event.ronde && note.eventId === event.id) eventNote = note;
+    }
+    const pending = state.fase === 'event' &&
+      state.eventAktif?.id === event.id &&
+      state.eventAktif.dipilih === null;
+    if (pending) {
+      const decisionPending = document.createElement('p');
+      decisionPending.className = 'game-event-feedback';
+      decisionPending.textContent = hudCopy.copy.eventDecisionPending;
+      const reopen = document.createElement('button');
+      reopen.type = 'button';
+      reopen.className = 'game-event-reopen';
+      reopen.textContent = hudCopy.copy.eventDecisionReopen;
+      reopen.setAttribute('aria-haspopup', 'dialog');
+      reopen.addEventListener('click', onReopen);
+      article.append(decisionPending, reopen);
+    } else if (eventNote?.pilihanEvent === 'lewati_tanpa_efek') {
+      const feedback = document.createElement('p');
+      feedback.className = 'game-event-feedback';
+      feedback.textContent = hudCopy.copy.eventSkipped;
+      article.append(feedback);
+    } else if (eventNote?.pilihanEvent) {
+      const choice = event.pilihan.find((item) => item.id === eventNote?.pilihanEvent);
+      if (choice) {
+        const feedback = document.createElement('p');
+        feedback.className = 'game-event-feedback';
+        feedback.textContent = hudCopy.copy.eventChoiceFeedback.replace('{choice}', choice.teks);
+        article.append(feedback);
+      }
+    }
     container.append(article);
   }
-  if (!hasArticle) {
-    const message = document.createElement('p');
-    message.textContent = hudCopy.copy.noNews;
-    container.append(message);
-  }
+
   if (container.scrollHeight > container.clientHeight) {
     const scrollCue = document.createElement('span');
     scrollCue.className = 'game-event-scroll-cue';

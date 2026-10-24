@@ -8,6 +8,7 @@ import type { GameMachine, Phase } from '../game/machine';
 import { composeLaporanKota, type SkorAkhir } from '../game/report';
 import { createTicketScreen } from './ticketScreen';
 import { createTutorialGuide } from './tutorial';
+import { createRoundAutomation } from './roundAutomation';
 const phaseCopy: Record<Phase, { title: string; description?: string }> = {
   menu: { title: 'Eleven Blocks' },
   tutorial: { title: 'Tutorial', description: 'Pengenalan permainan' },
@@ -46,6 +47,12 @@ export function createScreenRouter(
   const huds: Partial<Record<Phase, HudRenderer>> = {};
   const audio = createAudioController();
   const soundToggles: HTMLButtonElement[] = [];
+  const headings = {} as Record<Phase, HTMLHeadingElement>;
+  const phaseAnnouncement = document.createElement('p');
+  phaseAnnouncement.className = 'phase-announcement';
+  phaseAnnouncement.setAttribute('role', 'status');
+  phaseAnnouncement.setAttribute('aria-live', 'polite');
+  phaseAnnouncement.setAttribute('aria-atomic', 'true');
 
   const createSoundToggle = (): HTMLButtonElement => {
     const soundToggle = document.createElement('button');
@@ -77,6 +84,17 @@ export function createScreenRouter(
     },
   });
   const teacherReceiver = ticketScreen.createTeacherReceiver();
+  const roundAutomation = createRoundAutomation(() => {
+    if (options.getState().fase !== 'ringkasan') return;
+    if (options.dispatch({ type: 'SELESAI_RONDE' })) {
+      machine.restore(options.getState().fase);
+      render();
+    }
+  });
+  let previousRenderedPhase: Phase | null = null;
+  document.addEventListener('visibilitychange', () => {
+    roundAutomation.setVisible(document.visibilityState !== 'hidden');
+  });
 
   for (const [phase, copy] of Object.entries(phaseCopy) as [Phase, typeof phaseCopy[Phase]][]) {
     const screen = document.createElement('section');
@@ -85,6 +103,8 @@ export function createScreenRouter(
     screen.setAttribute('aria-labelledby', `screen-title-${phase}`);
 
     const heading = document.createElement('h1');
+    heading.tabIndex = -1;
+    headings[phase] = heading;
     heading.id = `screen-title-${phase}`;
     heading.textContent = copy.title;
     if (phase === 'menu') {
@@ -250,16 +270,30 @@ export function createScreenRouter(
     root.append(screen);
     screens[phase] = screen;
   }
+  root.append(phaseAnnouncement);
 
   function render(): void {
     const currentMachine = machine.getPhase();
-    const statePhase = options.getState().fase;
+    const state = options.getState();
+    const statePhase = state.fase;
     if (currentMachine !== 'menu' && currentMachine !== statePhase) machine.restore(statePhase);
     const incoming = location.hash.startsWith('#tiket=');
     const receiving = incoming || location.hash === '#guru';
     const current = receiving ? 'tiket' : machine.getPhase();
+    roundAutomation.update(current === statePhase ? statePhase : current, state.ronde, state.seed);
+    roundAutomation.setVisible(document.visibilityState !== 'hidden');
     for (const phase of Object.keys(screens) as Phase[]) screens[phase].hidden = phase !== current;
     huds[current]?.render();
+    if (current !== previousRenderedPhase) {
+      if (previousRenderedPhase !== null) {
+        headings[current].focus();
+        const title = phaseCopy[current].title;
+        phaseAnnouncement.textContent = ['ronde', 'event', 'ringkasan'].includes(current)
+          ? `Ronde ${state.ronde}: ${title}`
+          : title;
+      }
+      previousRenderedPhase = current;
+    }
     if (current === 'laporan') renderReport(screens.laporan.querySelector('.results-content')!);
     if (current === 'tiket') {
       const teacherRoute = location.hash === '#guru' || incoming;

@@ -88,6 +88,8 @@ interface EventChoice {
   penutup: string;
   biaya: number;
   efek: Record<string, unknown>;
+  efek_kondisional?: Array<{ syarat: string; efek: Record<string, unknown> }>;
+  efek_tertunda?: Array<{ setelahRonde: number; efek: Record<string, unknown>; catatan: string; syarat?: string }>;
 }
 
 interface EventFixtures {
@@ -197,6 +199,49 @@ describe('validasi jadwal event REQ-015', () => {
       expect(result.stderr).toContain(field);
     }
   });
+  it('menolak efek kondisional yang bentuknya tidak lengkap atau efeknya tidak dikenal', () => {
+    const directory = dataDirectory();
+    const events = eventFixtures();
+    events.event[2]!.pilihan[0]!.efek_kondisional = [{ syarat: '', efek: { tanah: 1 } }];
+    writeFullPackage(directory, events);
+    const result = run(directory);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('pilihan[0].efek_kondisional[0].syarat');
+    expect(result.stderr).toContain('pilihan[0].efek_kondisional[0].efek');
+  });
+  it('menolak efek tertunda event dengan ronde jatuh tempo invalid', () => {
+    const directory = dataDirectory();
+    const events = eventFixtures();
+    events.event[5]!.pilihan[1]!.efek_tertunda![0]!.setelahRonde = 0;
+    writeFullPackage(directory, events);
+    const result = run(directory);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('pilihan[1].efek_tertunda[0].setelahRonde');
+  });
+
+  it('menolak syarat event yang tidak didukung resolver', () => {
+    const directory = dataDirectory();
+    const events = eventFixtures();
+    events.event[2]!.pilihan[0]!.efek_kondisional![0]!.syarat = 'K07 atau K08 ada';
+    writeFullPackage(directory, events);
+    const result = run(directory);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('pilihan[0].efek_kondisional[0].syarat');
+  });
+  it('menolak syarat tertunda event yang tidak didukung resolver', () => {
+    const directory = dataDirectory();
+    const events = eventFixtures();
+    events.event[5]!.pilihan[1]!.efek_tertunda![0]!.syarat = 'K07 atau K08 ada';
+    writeFullPackage(directory, events);
+    const result = run(directory);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('pilihan[1].efek_tertunda[0].syarat');
+  });
+
+
 
   it('menolak pilihan pada event naratif', () => {
     const directory = dataDirectory();

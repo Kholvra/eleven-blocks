@@ -47,6 +47,9 @@
           "teks": "Siapkan posko siaga dan pompa",
           "biaya": 8,
           "efek": { "warga": 1 },
+          "efek_kondisional": [
+            { "syarat": "K07 dan K08 tidak ada", "efek": { "akses": -2, "warga": -2, "udara": -1 } }
+          ],
           "penutup": "Kesejahteraan warga naik."
         },
         {
@@ -54,6 +57,9 @@
           "teks": "Gotong royong membersihkan sungai",
           "biaya": 2,
           "efek": { "hijau": 1, "warga": 1 },
+          "efek_kondisional": [
+            { "syarat": "K07 ada", "efek": { "udara": 1 } }
+          ],
           "penutup": "Ruang hijau dan kesejahteraan naik."
         },
         {

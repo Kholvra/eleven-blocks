@@ -1,10 +1,10 @@
 import balance from '../src/data/balance.json';
+import events from '../src/data/events.json';
 
 import { describe, expect, it } from 'vitest';
 import { statusAksi, statusKartu } from '../src/game/cards';
 import { createGameEngine } from '../src/game/engine';
 import type { GameAction } from '../src/game/engine';
-import { BUILDABLE_CELLS } from '../src/game/board';
 import { baruGame } from '../src/game/state';
 import type { GameState, Phase } from '../src/game/types';
 import { hitungSkorAkhir } from '../src/game/report';
@@ -20,8 +20,14 @@ function readyForPlay(overrides: Partial<GameState> = {}) {
 }
 
 function enterHand(engine: EngineActions) {
-  enterRound(engine);
-  engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+  if (engine.getState().fase === 'menu') enterRound(engine);
+  const state = engine.getState();
+  if (state.fase === 'event' && state.eventAktif !== null) {
+    const event = events.event.find((item) => item.id === state.eventAktif?.id);
+    const choice = event?.pilihan.find((item) => item.biaya <= state.anggaran);
+    if (event && choice) expect(engine.dispatch({ type: 'PILIH_EVENT', eventId: event.id, pilihanId: choice.id })).toBe(true);
+  }
+  expect(engine.getState().fase).toBe('ronde');
   expect(engine.getState().tahapRonde).toBe('tangan');
 }
 
@@ -35,14 +41,10 @@ function enterRound(engine: EngineActions) {
 }
 
 function finishRoundStages(engine: EngineActions) {
-  const stages = ['berita', 'tangan', 'resolusi', 'reaksi', 'transisi'] as const;
-  expect(engine.getState().fase).toBe('ronde');
-  expect(engine.getState().tahapRonde).toBe(stages[0]);
-
-  for (const stage of stages.slice(1)) {
-    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-    expect(engine.getState().tahapRonde).toBe(stage);
-  }
+  enterHand(engine);
+  expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
+  expect(engine.getState().fase).toBe('ringkasan');
+  expect(engine.getState().tahapRonde).toBe('transisi');
 }
 
 function finishRound(engine: EngineActions) {
@@ -51,25 +53,25 @@ function finishRound(engine: EngineActions) {
 }
 
 describe('game engine', () => {
-  it('starts in menu and follows the five-stage first-round flow', () => {
+  it('starts each round with a hand and resolves skipping directly into recap', () => {
     const engine = createGameEngine(baruGame('phase-flow'));
 
     expect(engine.getState().fase).toBe('menu');
     enterRound(engine);
-    finishRoundStages(engine);
+    expect(engine.getState()).toMatchObject({ fase: 'ronde', tahapRonde: 'tangan' });
+    expect(engine.getState().tangan).toHaveLength(4);
 
-    expect(engine.getState().tahapRonde).toBe('transisi');
-    engine.dispatch({ type: 'SELESAI_RONDE' });
-    expect(engine.getState().ronde).toBe(2);
-    expect(engine.getState().fase).toBe('ronde');
-    expect(engine.getState().tahapRonde).toBe('berita');
+    finishRoundStages(engine);
+    expect(engine.getState()).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi', ronde: 1 });
+    expect(engine.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
+    expect(engine.getState()).toMatchObject({ fase: 'ronde', tahapRonde: 'tangan', ronde: 2 });
   });
 
   it('preserves the state when an action is invalid', () => {
     const engine = createGameEngine(baruGame('invalid-actions'));
     const before = structuredClone(engine.getState());
 
-    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(false);
     expect(engine.getState()).toEqual(before);
 
     engine.dispatch({ type: 'SELESAI_RONDE' });
@@ -89,13 +91,15 @@ describe('game engine', () => {
     enterRound(engine);
 
     for (let round = 1; round <= 9; round += 1) {
+      enterHand(engine);
       const beforeIncome = engine.getState().anggaran;
       finishRound(engine);
 
       expect(engine.getState().anggaran).toBe(beforeIncome + balance.ekonomi.pendapatan_per_ronde);
       expect(engine.getState().ronde).toBe(round + 1);
-      expect(engine.getState().fase).toBe('ronde');
-      expect(engine.getState().tahapRonde).toBe('berita');
+      const nextEvent = events.event.find((event) => event.ronde === round + 1);
+      expect(engine.getState().fase).toBe(nextEvent?.jenis === 'interaktif' ? 'event' : 'ronde');
+      expect(engine.getState().tahapRonde).toBe(nextEvent?.jenis === 'interaktif' ? 'berita' : 'tangan');
     }
   });
   it('accounts for all 19 policies through ten rounds of play', () => {
@@ -105,17 +109,13 @@ describe('game engine', () => {
     enterRound(engine);
 
     for (let round = 1; round <= 10; round += 1) {
-      engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+      enterHand(engine);
       const hand = engine.getState().tangan;
       expect(hand.length).toBeGreaterThan(0);
-      const policy = hand[0];
+      const policy = hand[0]!;
       expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: policy })).toBe(true);
-      for (const stage of ['resolusi', 'reaksi', 'transisi'] as const) {
-        engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-        expect(engine.getState().tahapRonde).toBe(stage);
-      }
-      engine.dispatch({ type: 'SELESAI_RONDE' });
-
+      expect(engine.getState()).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi' });
+      expect(engine.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
     }
 
     const final = engine.getState();
@@ -187,28 +187,126 @@ describe('game engine', () => {
   });
 
 
-  it('enforces guards between ringkasan, event, and round progression', () => {
-    const state = baruGame('mid-rounds');
+  it('only enters event and recap through their owning decisions', () => {
+    const state = baruGame('scheduled-event-guards');
     state.fase = 'ronde';
     state.ronde = 3;
     const engine = createGameEngine(state);
 
-    // Dapat berpindah ke event di ronde 3
-    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'event' })).toBe(true);
     expect(engine.getState().fase).toBe('event');
-
-    // Dari event dapat lanjut ke ringkasan
-    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ringkasan' })).toBe(true);
-    expect(engine.getState().fase).toBe('ringkasan');
-
-    // Di ronde 3, tidak boleh langsung lompat ke laporan
+    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ringkasan' })).toBe(false);
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(false);
+    expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 0 })).toBe(false);
+    expect(engine.dispatch({ type: 'PILIH_EVENT', eventId: 'E01', pilihanId: 'posko_siaga' })).toBe(true);
+    expect(engine.getState()).toMatchObject({ fase: 'ronde', tahapRonde: 'tangan' });
+    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'event' })).toBe(false);
+    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ringkasan' })).toBe(false);
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
+    expect(engine.getState()).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi' });
     expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'laporan' })).toBe(false);
-    expect(engine.getState().fase).toBe('ringkasan');
+    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ronde' })).toBe(false);
+  });
+  it('recovers a committed card when an event note records only the event choice', () => {
+    const state = baruGame('recover-after-event-choice');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.ronde = 3;
+    state.kartuDimainkanRondeIni = 'K01';
+    state.milik = [0];
+    state.anggaran -= 14;
+    state.papan.ubin[17] = 0;
+    state.catatan.push({
+      ronde: 3,
+      kartuIdx: null,
+      delta: { warga: 2 },
+      meter: { ...state.meter },
+      anggaran: state.anggaran,
+      eventId: 'E01',
+      pilihanEvent: 'evakuasi',
+    });
+    const engine = createGameEngine(state);
+    const recovered = structuredClone(engine.getState());
 
-    // Di ronde 3, dapat kembali ke ronde berikutnya
-    expect(engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ronde' })).toBe(true);
-    expect(engine.getState().fase).toBe('ronde');
-    expect(engine.getState().tahapRonde).toBe('berita');
+    expect(recovered).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi', anggaran: state.anggaran });
+    expect(recovered.eventTerpakai).toContain('E01');
+    expect(recovered.catatan.at(-1)).toMatchObject({ ronde: 3, kartuIdx: 0 });
+    expect(recovered.meter).not.toEqual(state.meter);
+    expect(createGameEngine(recovered).getState()).toEqual(recovered);
+  });
+
+  it('trusts a round-resolution note over a missing or mismatched played-card index', () => {
+    const state = baruGame('recover-round-note');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.kartuDimainkanRondeIni = 'K01';
+    state.milik = [0];
+    state.anggaran -= 14;
+    state.catatan.push({
+      ronde: 1,
+      kartuIdx: 7,
+      delta: {},
+      meter: { ...state.meter },
+      anggaran: state.anggaran,
+    });
+
+    const engine = createGameEngine(state);
+    const recovered = structuredClone(engine.getState());
+
+    expect(recovered).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi', anggaran: state.anggaran });
+    expect(recovered.meter).toEqual(state.meter);
+    expect(recovered.catatan).toHaveLength(1);
+    expect(createGameEngine(recovered).getState()).toEqual(recovered);
+  });
+
+  it('resolves a committed card without charging it again when no round note exists', () => {
+    const state = baruGame('recover-committed-card');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.kartuDimainkanRondeIni = 'K01';
+    state.milik = [0];
+    state.anggaran -= 14;
+    state.papan.ubin[17] = 0;
+    const budget = state.anggaran;
+
+    const engine = createGameEngine(state);
+    const recovered = structuredClone(engine.getState());
+
+    expect(recovered).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi', anggaran: budget });
+    expect(recovered.catatan.at(-1)?.kartuIdx).toBe(0);
+    expect(createGameEngine(recovered).getState()).toEqual(recovered);
+  });
+
+  it('reconstructs a pending scheduled event and clears stale saved event state', () => {
+    const pending = baruGame('recover-pending-event');
+    pending.ronde = 3;
+    pending.fase = 'event';
+    pending.eventAktif = null;
+    expect(createGameEngine(pending).getState()).toMatchObject({
+      fase: 'event',
+      tahapRonde: 'berita',
+      eventAktif: { id: 'E01', dipilih: null },
+    });
+
+    const stale = structuredClone(pending);
+    stale.eventTerpakai = ['E01'];
+    stale.eventAktif = { id: 'E01', dipilih: null };
+    const reconciled = createGameEngine(stale).getState();
+    expect(reconciled).toMatchObject({ fase: 'ronde', tahapRonde: 'tangan', eventAktif: null, ronde: 3 });
+    expect(reconciled.eventTerpakai).toEqual(['E01']);
+  });
+
+  it('returns an incomplete no-card save to the same round without income or resolution', () => {
+    const state = baruGame('recover-no-card');
+    state.fase = 'ringkasan';
+    state.tahapRonde = 'transisi';
+    state.ronde = 2;
+    state.anggaran = 17;
+    state.tangan = [];
+    const engine = createGameEngine(state);
+
+    expect(engine.getState()).toMatchObject({ fase: 'ronde', tahapRonde: 'tangan', ronde: 2, anggaran: 17 });
+    expect(engine.getState().tangan).toHaveLength(4);
+    expect(engine.getState().catatan).toEqual([]);
   });
   it('starts with all 19 policy indices shuffled deterministically', () => {
     const first = createGameEngine(baruGame('deck-seed'));
@@ -246,28 +344,29 @@ describe('game engine', () => {
     const first = createGameEngine(state);
     const repeated = createGameEngine(repeatedState);
 
-    first.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-    repeated.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-
     expect(first.getState().tangan).toHaveLength(4);
     expect(first.getState().tangan).toEqual(repeated.getState().tangan);
     expect(first.getState().discard).toEqual([]);
     expect(first.getState().deck).toHaveLength(1);
   });
 
-  it('discards leftover hand policies before the next round is drawn', () => {
+  it('discards leftover hand policies and draws the next hand on automatic round advance', () => {
     const state = baruGame('leftover-discard');
-    state.fase = 'ronde';
+    state.fase = 'ringkasan';
     state.tahapRonde = 'transisi';
     state.deck = [4, 5, 6, 7, 8, 9, 10, 11];
     state.tangan = [0, 1];
+    state.catatan.push({
+      ronde: 1,
+      kartuIdx: null,
+      delta: {},
+      meter: { ...state.meter },
+      anggaran: state.anggaran,
+    });
     const engine = createGameEngine(state);
 
-    engine.dispatch({ type: 'SELESAI_RONDE' });
+    expect(engine.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
     expect(engine.getState().discard).toEqual([0, 1]);
-    expect(engine.getState().tangan).toEqual([]);
-    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-
     expect(engine.getState().tangan).toHaveLength(4);
     expect(engine.getState().tangan).not.toContain(0);
     expect(engine.getState().tangan).not.toContain(1);
@@ -284,8 +383,8 @@ describe('game engine', () => {
     expect(statusKartu(playable.getState(), 0)).toEqual({ available: false, reason: 'Kartu tidak ada di tangan.' });
 
     const afterPlay = structuredClone(playable.getState());
-    playable.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-    expect(playable.getState().anggaran).toBe(afterPlay.anggaran);
+    expect(playable.dispatch({ type: 'LEWATI_RONDE' })).toBe(false);
+    expect(playable.getState()).toEqual(afterPlay);
 
     const unaffordable = readyForPlay({ tangan: [0], anggaran: 6 });
     expect(statusKartu(unaffordable.getState(), 0)).toEqual({ available: false, reason: 'Dana kurang.' });
@@ -334,17 +433,11 @@ describe('game engine', () => {
     expect(actionAfterPolicy.getState()).toEqual(beforeAction);
 
     const acrossRounds = createGameEngine({ ...baruGame('act01-session-limit'), fase: 'ronde', tahapRonde: 'berita', anggaran: 3 });
-    acrossRounds.dispatch({ type: 'PROSES_TAHAP_RONDE' });
     expect(acrossRounds.getState().tahapRonde).toBe('tangan');
     expect(acrossRounds.dispatch({ type: 'MAIN_AKSI', aksiId: 'ACT01' })).toBe(true);
-    for (const stage of ['resolusi', 'reaksi', 'transisi'] as const) {
-      expect(acrossRounds.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
-      expect(acrossRounds.getState().tahapRonde).toBe(stage);
-    }
-    acrossRounds.dispatch({ type: 'SELESAI_RONDE' });
-    expect(acrossRounds.getState().ronde).toBe(2);
-    expect(acrossRounds.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
-    expect(acrossRounds.getState().tahapRonde).toBe('tangan');
+    expect(acrossRounds.getState().fase).toBe('ringkasan');
+    expect(acrossRounds.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
+    expect(acrossRounds.getState()).toMatchObject({ ronde: 2, fase: 'ronde', tahapRonde: 'tangan' });
     expect(acrossRounds.getState().anggaran).toBeGreaterThanOrEqual(3);
     const beforeSecondRoundAttempt = structuredClone(acrossRounds.getState());
     expect(acrossRounds.dispatch({ type: 'MAIN_AKSI', aksiId: 'ACT01' })).toBe(false);
@@ -365,11 +458,8 @@ describe('game engine', () => {
     expect(engine.getState().kartuCadanganACT04).toBe(9);
     expect(engine.getState().kartuDimainkanRondeIni).toBe('ACT04');
 
-    for (let i = 0; i < 4; i += 1) engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-    expect(engine.getState().tahapRonde).toBe('transisi');
-    engine.dispatch({ type: 'SELESAI_RONDE' });
-    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-    expect(engine.getState().tangan).toHaveLength(4);
+    expect(engine.getState()).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi' });
+    expect(engine.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
     expect(engine.getState().tangan).toContain(9);
     expect(engine.getState().deck).toHaveLength(2);
     expect(engine.getState().kartuCadanganACT04).toBe(null);
@@ -381,81 +471,6 @@ describe('game engine', () => {
 
     expect(engine.dispatch({ type: 'MAIN_AKSI', aksiId: 'ACT04', kartuIdx: 0 })).toBe(false);
     expect(engine.getState()).toEqual(before);
-  });
-function placementEngine(configure?: (state: GameState) => void, fixedNow = 1000) {
-  const state = baruGame('policy-placement');
-  state.fase = 'ronde';
-  state.tahapRonde = 'tangan';
-  state.tangan = [4, 5];
-  state.waktuSimpan = fixedNow;
-  configure?.(state);
-  return createGameEngine(state, undefined, () => fixedNow);
-}
-
-function expectRejectedWithoutMutation(engine: EngineActions, kartuIdx = 4, selIdx = 17) {
-  const previousState = engine.getState();
-  const previousSnapshot = structuredClone(previousState);
-
-  expect(engine.dispatch({ type: 'TEMPATKAN_KEBIJAKAN', kartuIdx, selIdx })).toBe(false);
-  expect(engine.getState()).toBe(previousState);
-  expect(engine.getState()).toEqual(previousSnapshot);
-}
-
-const rejectedPlacementCases: Array<[string, (state: GameState) => void]> = [
-  ['wrong phase', (state) => { state.fase = 'menu'; }],
-  ['wrong round stage', (state) => { state.tahapRonde = 'berita'; }],
-  ['card absent from hand', (state) => { state.tangan = [5]; }],
-  ['card already played this round', (state) => { state.kartuDimainkanRondeIni = 'aksi'; }],
-  ['card already placed', (state) => { state.milik = [4]; }],
-  ['occupied cell', (state) => { state.papan.ubin[17] = 9; }],
-];
-
-const rejectedCellIndexes: Array<[string, number]> = [
-  ['non-buildable cell', 16],
-  ['negative cell index', -1],
-  ['cell outside the 8×8 board', 64],
-  ['cell outside the tile array', 256],
-  ['non-integer cell index', 17.5],
-];
-  it('places a policy into one empty buildable cell without changing costs or meters', () => {
-    const engine = placementEngine();
-    const previousState = engine.getState();
-    const expectedState = structuredClone(previousState);
-    expectedState.papan.ubin[17] = 4;
-    expectedState.tangan = [5];
-    expectedState.milik = [4];
-    expectedState.kartuDimainkanRondeIni = 'K05';
-
-    expect(engine.dispatch({ type: 'TEMPATKAN_KEBIJAKAN', kartuIdx: 4, selIdx: 17 })).toBe(true);
-
-    const nextState = engine.getState();
-    expect(nextState).not.toBe(previousState);
-    expect(nextState.papan.ubin).not.toBe(previousState.papan.ubin);
-    expect(previousState.papan.ubin[17]).toBeNull();
-    expect(nextState).toEqual(expectedState);
-  });
-
-  it.each(rejectedPlacementCases)('rejects placement for %s without mutation', (_scenario, configure) => {
-    expectRejectedWithoutMutation(placementEngine(configure));
-  });
-
-  it.each(rejectedCellIndexes)('rejects a %s without mutation', (_scenario, selIdx) => {
-    expectRejectedWithoutMutation(placementEngine(), 4, selIdx);
-  });
-
-  it('rejects a non-integer card index without mutation', () => {
-    expectRejectedWithoutMutation(placementEngine(), 4.5, 17);
-  });
-
-  it('rejects placement when every buildable cell is occupied without mutation', () => {
-    const engine = placementEngine((state) => {
-      state.milik = BUILDABLE_CELLS.map((cell) => cell + 100);
-      for (const cell of BUILDABLE_CELLS) {
-        state.papan.ubin[cell] = cell + 100;
-      }
-    });
-
-    expectRejectedWithoutMutation(engine);
   });
 
   it('timestamps and emits each successful state change without changing rejected actions', () => {
@@ -471,7 +486,7 @@ const rejectedCellIndexes: Array<[string, number]> = [
     expect(changes[0]).toEqual(engine.getState());
 
     now = 44;
-    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(false);
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(false);
     expect(engine.getState().waktuSimpan).toBe(43);
     expect(changes).toHaveLength(1);
   });
@@ -485,12 +500,11 @@ const rejectedCellIndexes: Array<[string, number]> = [
     expect(engine.getState().waktuSimpan).toBe(99);
     expect(initialState.setelan.audio).toBe(true);
   });
-  it('applies a played policy effect during resolution and schedules delayed effects', () => {
+  it('resolves a played policy immediately and schedules its delayed effects', () => {
     const engine = readyForPlay({ tangan: [17], meter: { udara: 50, akses: 50, hijau: 50, warga: 50 } });
 
     expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 17 })).toBe(true);
-    expect(engine.getState().meter.akses).toBe(50);
-    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(engine.getState()).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi' });
 
     expect(engine.getState().meter).toEqual({ udara: 50, akses: 57, hijau: 50, warga: 50 });
     expect(engine.getState().antrian).toEqual([
@@ -509,19 +523,18 @@ const rejectedCellIndexes: Array<[string, number]> = [
       anggaran: 76,
     });
   });
-  it('applies direct and delayed effects from action cards', () => {
+  it('applies direct and delayed effects from action cards before showing recap', () => {
     const engine = readyForPlay({ meter: { udara: 50, akses: 50, hijau: 50, warga: 50 } });
 
     expect(engine.dispatch({ type: 'MAIN_AKSI', aksiId: 'ACT01' })).toBe(true);
-    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
-
+    expect(engine.getState().fase).toBe('ringkasan');
     expect(engine.getState().meter.warga).toBe(52);
     expect(engine.getState().antrian).toEqual([
       { ronde: 3, rondeAsal: 1, sumber: 'ACT01', efek: { warga: 1 }, catatan: 'Efek permainan: manfaat dialog berlanjut.' },
     ]);
   });
 
-  it('resolves K08 delayed synergy once when K10 is on the board at target time', () => {
+  it('resolves queued effects on skip exactly once across later rounds', () => {
     const state = baruGame('k08-k10-synergy');
     state.fase = 'ronde';
     state.tahapRonde = 'tangan';
@@ -529,24 +542,19 @@ const rejectedCellIndexes: Array<[string, number]> = [
     state.milik = [9];
     const engine = createGameEngine(state);
     expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 7 })).toBe(true);
-    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+    expect(engine.getState().fase).toBe('ringkasan');
     expect(engine.getState().meter.hijau).toBe(40);
 
-    const target = structuredClone(engine.getState());
-    target.ronde = 2;
-    target.tahapRonde = 'tangan';
-    target.kartuDimainkanRondeIni = null;
-    const targetEngine = createGameEngine(target);
-    expect(targetEngine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
-    expect(targetEngine.getState().meter.hijau).toBe(42);
-    expect(targetEngine.getState().antrian).toEqual([]);
+    expect(engine.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
+    expect(engine.getState().ronde).toBe(2);
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
+    expect(engine.getState().meter.hijau).toBe(42);
+    expect(engine.getState().antrian).toEqual([]);
 
-    const nextRound = structuredClone(targetEngine.getState());
-    nextRound.ronde = 3;
-    nextRound.tahapRonde = 'tangan';
-    const nextEngine = createGameEngine(nextRound);
-    expect(nextEngine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
-    expect(nextEngine.getState().meter.hijau).toBe(42);
+    expect(engine.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
+    enterHand(engine);
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
+    expect(engine.getState().meter.hijau).toBe(42);
   });
 
   it('clamps each queued effect before applying the next one', () => {
@@ -560,11 +568,12 @@ const rejectedCellIndexes: Array<[string, number]> = [
     ];
     const engine = createGameEngine(state);
 
-    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
     expect(engine.getState().meter.udara).toBe(97);
     expect(engine.getState().catatan.at(-1)?.delta).toEqual({ udara: -2 });
     expect(engine.getState().antrian).toEqual([]);
   });
+
 
   it('records actual clamped K18 delayed effects once when they are capped at round 10', () => {
     const state = baruGame('k18-final-round');
@@ -575,7 +584,7 @@ const rejectedCellIndexes: Array<[string, number]> = [
     state.meter = { udara: 1, akses: 99, hijau: 50, warga: 50 };
     const engine = createGameEngine(state);
     expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 17 })).toBe(true);
-    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+    expect(engine.getState()).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi' });
     expect(engine.getState().antrian[0].ronde).toBe(10);
     expect(engine.getState().antrian[0].rondeAsal).toBe(7);
 
@@ -603,7 +612,7 @@ const rejectedCellIndexes: Array<[string, number]> = [
     state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
     const engine = createGameEngine(state);
     expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 18 })).toBe(true);
-    engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
+    expect(engine.getState()).toMatchObject({ fase: 'ringkasan', tahapRonde: 'transisi' });
     expect(engine.getState().meter.warga).toBe(54);
     expect(engine.getState().antrian[0]).toMatchObject({
       ronde: 5,
@@ -616,7 +625,7 @@ const rejectedCellIndexes: Array<[string, number]> = [
     target.tahapRonde = 'tangan';
     target.kartuDimainkanRondeIni = null;
     const targetEngine = createGameEngine(target);
-    expect(targetEngine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(targetEngine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
     expect(targetEngine.getState().meter).toEqual({ udara: 46, akses: 47, hijau: 50, warga: 54 });
     expect(targetEngine.getState().antrian).toEqual([]);
   });
@@ -642,7 +651,7 @@ const rejectedCellIndexes: Array<[string, number]> = [
     state.antrian = [{ ronde: 5, sumber: source, efek: effect, syarat }];
     const engine = createGameEngine(state);
 
-    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
     expect(engine.getState().meter.akses).toBe(expectedAccess);
     expect(engine.getState().meter.hijau).toBe(expectedGreen);
     expect(engine.getState().antrian).toEqual([]);
@@ -660,38 +669,17 @@ const rejectedCellIndexes: Array<[string, number]> = [
     }];
     const engine = createGameEngine(state);
 
-    expect(engine.dispatch({ type: 'PROSES_TAHAP_RONDE' })).toBe(true);
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
     expect(engine.getState().meter.warga).toBe(49);
     expect(engine.getState().antrian).toEqual([]);
   });
 
 
-  it.each([
-    ['without protection', [], null, [], { udara: 50, akses: 42, hijau: 50, warga: 46 }],
-    ['previously used ACT03', [], null, ['ACT03'], { udara: 50, akses: 42, hijau: 50, warga: 46 }],
-    ['ACT03 this round', [], 'ACT03', ['ACT03'], { udara: 50, akses: 46, hijau: 50, warga: 48 }],
-    ['K07 protection', [6], null, [], { udara: 50, akses: 46, hijau: 50, warga: 48 }],
-    ['K07 plus ACT03', [6], 'ACT03', ['ACT03'], { udara: 50, akses: 46, hijau: 50, warga: 48 }],
-  ] as const)('applies extreme-rain damage once with %s', (_scenario, owned, playedCode, usedActions, expectedMeters) => {
-    const state = baruGame(`extreme-rain-${_scenario}`);
-    state.fase = 'event';
-    state.eventAktif = { id: 'E01', dipilih: null };
-    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
-    state.milik = [...owned];
-    state.kartuDimainkanRondeIni = playedCode;
-    state.aksiTerpakai = [...usedActions];
-    const engine = createGameEngine(state);
-
-    expect(engine.dispatch({ type: 'TERAPKAN_HUJAN_EKSTREM' })).toBe(true);
-    expect(engine.getState().atribusiKeputusan).toEqual([]);
-    expect(engine.getState().meter).toEqual(expectedMeters);
-    const resolved = structuredClone(engine.getState());
-    expect(engine.dispatch({ type: 'TERAPKAN_HUJAN_EKSTREM' })).toBe(false);
-    expect(engine.getState()).toEqual(resolved);
-  });
-
   it('leaves meters unchanged across rounds without discrete effects', () => {
-    const engine = createGameEngine(baruGame('no-passive-meter-drift'));
+
+    const state = baruGame('no-passive-meter-drift');
+    state.eventTerpakai = ['E01', 'E02', 'E03'];
+    const engine = createGameEngine(state);
     const initialMeters = structuredClone(engine.getState().meter);
     enterRound(engine);
 

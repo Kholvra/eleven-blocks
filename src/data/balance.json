@@ -38,15 +38,6 @@
       { "kode": "ACT04", "biaya": 4 }
     ]
   },
-  "event": {
-    "hujanEkstrem": {
-      "kerusakan": {
-        "akses": -8,
-        "warga": -4
-      },
-      "mitigasiPersen": 50
-    }
-  },
   "skor": {
     "ambang_meter": {
       "udara": 60,

@@ -180,7 +180,6 @@
 .hud-header,
 .hud-status,
 .hud-meters,
-.hud-phases,
 .hud-news,
 .hud-card-list,
 .hud-board-list,
@@ -277,25 +276,7 @@
   background: var(--color-surface-raised);
 }
 
-.hud-phases {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
 
-.phase-step {
-  min-height: var(--target-min);
-  display: flex;
-  align-items: center;
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-}
 
 .hud-news {
   z-index: 2;
@@ -464,16 +445,6 @@
     grid-column: 1 / -1;
   }
 
-  .hud-phases {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-block: 2px;
-    scroll-padding-inline: var(--space-2);
-  }
-
-  .phase-step {
-    flex: 0 0 auto;
-  }
 
   .hud-main {
     grid-template-columns: minmax(0, 1fr);
@@ -540,7 +511,6 @@
 @media (forced-colors: active) {
   .hud-status,
   .meter-chip,
-  .phase-step,
   .hud-news,
   .meter-source-sheet,
   .hud-card,
@@ -621,22 +591,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .hud-phases {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 2px;
-    overflow: visible;
-  }
-
-  .phase-step {
-    min-width: 0;
-    justify-content: center;
-    padding: var(--space-1);
-    font-size: 0.65rem;
-    line-height: 1.15;
-    text-align: center;
-    overflow-wrap: anywhere;
-  }
 
   .hud-news[open] {
     position: static;
@@ -790,25 +744,6 @@
 [data-meter="rth"] { --meter-color: var(--color-meter-green); }
 [data-meter="kesejahteraan"] { --meter-color: var(--color-meter-wellbeing); }
 
-.hud-phases {
-  position: fixed;
-  z-index: 3;
-  top: max(1rem, env(safe-area-inset-top));
-  right: max(4.5rem, calc(env(safe-area-inset-right) + 3.5rem));
-  gap: 0.4rem;
-}
-
-.phase-step {
-  min-height: 2.25rem;
-  padding-inline: 0.8rem;
-  border: 1px solid var(--glass-border);
-  border-radius: 999px;
-  background: var(--glass-bg);
-  box-shadow: 0 4px 12px rgb(47 42 38 / 8%);
-  font-size: 0.8rem;
-  font-weight: 800;
-  backdrop-filter: blur(12px);
-}
 
 
 .hud-card-list {
@@ -959,23 +894,6 @@
     height: 0.35rem;
   }
 
-  .hud-phases {
-    top: auto;
-    right: max(0.55rem, env(safe-area-inset-right));
-    bottom: max(0.6rem, calc(env(safe-area-inset-bottom) + 10.25rem));
-    left: max(0.55rem, env(safe-area-inset-left));
-    display: flex;
-    gap: 0.3rem;
-    overflow-x: auto;
-    padding: 0.2rem;
-  }
-
-  .phase-step {
-    flex: 0 0 auto;
-    min-height: 2.25rem;
-    padding-inline: 0.65rem;
-    font-size: 0.72rem;
-  }
 
   .hud-card-list {
     inset: auto 0 max(0.35rem, env(safe-area-inset-bottom));
@@ -1023,10 +941,6 @@
     left: max(0.55rem, env(safe-area-inset-left));
   }
 
-  .hud-phases {
-    top: max(0.4rem, env(safe-area-inset-top));
-    bottom: auto;
-  }
 
   .hud-status {
     top: max(2.9rem, calc(env(safe-area-inset-top) + 2.3rem));
@@ -1264,25 +1178,6 @@
   z-index: 6;
 }
 
-.hud-phases {
-  position: fixed;
-  z-index: 7;
-  top: max(0.75rem, env(safe-area-inset-top));
-  right: max(0.85rem, env(safe-area-inset-right));
-  max-width: calc(100vw - 12rem);
-  justify-content: flex-end;
-}
-
-.phase-step {
-  min-height: 2.75rem;
-  font-weight: 750;
-}
-
-.phase-step[aria-current="step"],
-.phase-step[aria-current="true"] {
-  outline: 2px solid #b68931;
-  outline-offset: 1px;
-}
 
 .hud-meters,
 .game-resources {
@@ -1788,12 +1683,6 @@
     bottom: max(0.65rem, env(safe-area-inset-bottom));
   }
 
-  .hud-phases {
-    top: max(3.7rem, calc(env(safe-area-inset-top) + 3rem));
-    right: max(0.5rem, env(safe-area-inset-right));
-    max-width: calc(100vw - 1rem);
-    justify-content: flex-end;
-  }
 
   .hud-meters,
   .game-resources {
@@ -2034,21 +1923,6 @@
   transform: none;
 }
 
-.game-deck-counter {
-  position: fixed;
-  z-index: 9;
-  right: max(0.85rem, env(safe-area-inset-right));
-  bottom: max(0.8rem, env(safe-area-inset-bottom));
-  min-height: 2.75rem;
-  padding: 0.45rem 0.75rem;
-  display: grid;
-  align-content: center;
-  color: var(--color-text);
-  font-size: 0.75rem;
-  font-weight: 850;
-  font-variant-numeric: tabular-nums;
-  pointer-events: auto;
-}
 
 .game-round-controls {
   left: max(0.85rem, env(safe-area-inset-left));
@@ -2118,10 +1992,6 @@
     gap: 0.5rem;
   }
 
-  .game-deck-counter {
-    right: max(0.5rem, env(safe-area-inset-right));
-    bottom: max(8.9rem, calc(env(safe-area-inset-bottom) + 8.4rem));
-  }
 
   .game-round-controls {
     bottom: max(8.9rem, calc(env(safe-area-inset-bottom) + 8.4rem));
@@ -2146,7 +2016,6 @@
     max-height: 7.4rem;
   }
 
-  .game-deck-counter,
   .game-round-controls {
     bottom: max(0.4rem, env(safe-area-inset-bottom));
   }
@@ -2190,6 +2059,22 @@
 
 .game-control-button:hover {
   background: #f4ead8;
+}
+.game-round-advance.ui-panel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--card-action-border);
+  border-radius: var(--radius-control);
+  background: var(--card-ink);
+  color: var(--color-surface-raised);
+  box-shadow: 0 2px 0 var(--card-shadow-deep);
+  font-weight: 850;
+}
+
+.game-round-advance.ui-panel:hover {
+  background: var(--card-shadow-deep);
 }
 
 @media (max-width: 56rem) {
@@ -2319,10 +2204,6 @@
 }
 
 @media (max-width: 38rem) {
-  .game-deck-counter {
-    right: max(0.5rem, env(safe-area-inset-right));
-    bottom: max(0.65rem, env(safe-area-inset-bottom));
-  }
 
   .game-round-controls {
     bottom: max(0.65rem, env(safe-area-inset-bottom));
@@ -2359,20 +2240,6 @@
   content: "🪙 ";
 }
 
-.hud-phases {
-  top: max(4rem, calc(env(safe-area-inset-top) + 3.25rem));
-  right: auto;
-  left: 50%;
-  max-width: calc(100vw - 2rem);
-  justify-content: center;
-  transform: translateX(-50%);
-}
-
-@media (max-width: 38rem) {
-  .hud-phases {
-    display: none;
-  }
-}
 
 .hud-card.is-selected {
   box-shadow: 0 0 0 5px rgb(185 132 32 / 22%), 0 14px 24px rgb(47 42 38 / 24%);
@@ -2646,9 +2513,7 @@
   pointer-events: auto;
 }
 
-.game-card-dock--simple .simple-advance,
 .game-card-dock--simple .simple-cancel,
-.game-card-dock--simple .simple-deck,
 .simple-action-dialog .simple-cancel,
 .simple-action-dialog .simple-choice {
   min-height: 2rem;
@@ -2659,17 +2524,6 @@
   white-space: nowrap;
 }
 
-.game-card-dock--simple .simple-advance {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.25rem 0.8rem;
-  border: 1px solid var(--card-action-border);
-  background: var(--card-ink);
-  color: var(--color-surface-raised);
-  cursor: pointer;
-  box-shadow: 0 2px 0 var(--card-shadow-deep);
-}
 
 .game-card-dock--simple .simple-cancel,
 .simple-action-dialog .simple-cancel {
@@ -2680,44 +2534,6 @@
   cursor: pointer;
 }
 
-.game-card-dock--simple .simple-deck {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--card-paper-border);
-  background: var(--card-paper);
-  color: var(--card-paper-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.game-card-dock--simple .simple-deck-icon {
-  position: relative;
-  width: 0.9rem;
-  height: 0.75rem;
-  display: inline-block;
-}
-
-.game-card-dock--simple .simple-deck-icon::before,
-.game-card-dock--simple .simple-deck-icon::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 0.7rem;
-  height: 0.52rem;
-  border: 1.5px solid var(--card-paper-text);
-  border-radius: 2px;
-  background: var(--card-paper);
-}
-
-.game-card-dock--simple .simple-deck-icon::before {
-  transform: translate(2px, -2px);
-}
-
-.game-card-dock--simple .simple-deck-icon::after {
-  transform: translate(0, 1px);
-}
 
 
 .simple-action-dialog {
@@ -2844,9 +2660,7 @@
     bottom: 2.1rem;
   }
 
-  .game-card-dock--simple .simple-advance,
-  .game-card-dock--simple .simple-cancel,
-  .game-card-dock--simple .simple-deck {
+  .game-card-dock--simple .simple-cancel {
     min-height: 1.85rem;
     font-size: 0.58rem;
   }
@@ -2999,13 +2813,9 @@
   outline: none;
 }
 
-#app .hud-phases {
-  top: calc(env(safe-area-inset-top, 0px) + 11rem);
-}
 
 
 @media (max-width: 64rem) {
-  #app .hud-phases { top: calc(env(safe-area-inset-top, 0px) + 11rem); }
   #app .game-right-sidebar { top: calc(env(safe-area-inset-top, 0px) + 16.8rem); }
 }
 
@@ -3014,7 +2824,6 @@
 }
 
 @media (max-width: 38rem) {
-  #app .hud-phases { top: calc(env(safe-area-inset-top, 0px) + 16.4rem); }
   #app .game-right-sidebar { top: calc(env(safe-area-inset-top, 0px) + 26.6rem); }
 }
 .ui-panel,
@@ -3092,9 +2901,6 @@
   }
 }
 @media (min-width: 64.01rem) {
-  #app .hud-phases {
-    top: max(11.4rem, calc(env(safe-area-inset-top) + 10.5rem));
-  }
 
   #app .game-right-sidebar {
     top: max(14.2rem, calc(env(safe-area-inset-top) + 13.3rem));
@@ -3270,8 +3076,8 @@
 
 @media (max-width: 38rem) {
   #app .hud-news.game-events {
-    height: min(23dvh, 10rem);
-    max-height: min(23dvh, 10rem);
+    height: min(34dvh, 14rem);
+    max-height: min(34dvh, 14rem);
   }
 }
 
@@ -3293,4 +3099,114 @@
 /* Keep the scroll cue in the scrollbar gutter without adding a row above the first story. */
 #app .game-event-scroll-cue + .game-event-item {
   margin-block-start: -0.65rem;
+}
+#app .game-event-choices {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-control);
+}
+
+#app .game-event-choices legend {
+  padding-inline: var(--space-1);
+  font-weight: 700;
+}
+
+#app .game-event-choice {
+  display: grid;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  text-align: left;
+}
+
+#app .game-event-choice:not(:disabled):hover {
+  border-color: var(--color-focus);
+}
+
+#app .game-event-choice:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+#app .game-event-choice-cost {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+#app .game-event-reopen {
+  width: 100%;
+  min-height: var(--target-min);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+#app .game-event-reopen:hover {
+  border-color: var(--color-focus);
+}
+
+#app .event-decision-close {
+  min-height: var(--target-min);
+}
+
+#app .event-decision-dialog .simple-action-choices {
+  max-height: none;
+  overflow: visible;
+}
+
+
+
+#app .game-event-feedback {
+  margin-block: var(--space-3) 0;
+  font-weight: 700;
+}
+
+#app .screen:has(.hud) > h1,
+#app .phase-announcement {
+  position: fixed;
+  z-index: -1;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+#app .screen:has(.hud) > h1 {
+  display: block;
+}
+
+#app .hud .game-round-advance[hidden] {
+  display: none;
+}
+
+@media (max-width: 46rem) {
+  #app .game-right-sidebar {
+    top: max(13rem, calc(env(safe-area-inset-top, 0px) + 12rem));
+  }
+
+  #app .event-decision-dialog {
+    max-height: min(90dvh, 42rem);
+  }
+}
+
+#app .game-card-dock--simple[hidden] {
+  display: none;
 }

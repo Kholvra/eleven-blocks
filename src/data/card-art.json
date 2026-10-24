@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "keterangan": "Peta visual kartu dan aksi ke aset 3D. Dipakai papan kota dan kartu di tangan."
+  },
+  "modelByCategory": {
+    "transport": "road",
+    "hijau": "tree",
+    "sampah": "dumpster",
+    "tata-guna-lahan": "building",
+    "air": "building",
+    "energi": "building",
+    "permukiman": "building",
+    "ekonomi": "building"
+  },
+  "modelByCardId": {
+    "K01": "bicycle",
+    "K02": "busStop",
+    "K04": "bus",
+    "K08": "park",
+    "K09": "recycleBin",
+    "K10": "tree",
+    "K15": "market",
+    "K16": "market"
+  },
+  "modelByActionId": {
+    "ACT01": "market",
+    "ACT02": "building",
+    "ACT03": "recycleBin",
+    "ACT04": "bus"
+  }
+}
