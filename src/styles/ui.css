@@ -1109,6 +1109,10 @@
   backdrop-filter: blur(16px);
 }
 
+.screen[data-phase="menu"] > .save-status:empty {
+  display: none;
+}
+
 .screen[data-phase="menu"] > p,
 .screen[data-phase="tutorial"] > p {
   margin: 0;
@@ -1204,6 +1208,10 @@
   backdrop-filter: blur(4px);
 }
 
+.screen[data-phase="menu"] {
+  background: color-mix(in srgb, var(--color-surface-raised) 16%, transparent);
+}
+
 
 
 .screen :is(button, a, input, textarea, select, summary):focus-visible {
@@ -1257,23 +1265,70 @@
   }
 }
 
+.screen[data-phase="menu"] {
+  place-content: center start;
+  justify-items: start;
+  padding-block: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-bottom));
+  padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
+  padding-inline-start: max(env(safe-area-inset-left), clamp(1.5rem, 8vw, 8rem));
+}
+
+.screen[data-phase="menu"] h1 {
+  text-align: left;
+}
+
 .screen[data-phase="menu"] > .menu-actions {
-  min-width: min(20rem, calc(100vw - 2rem));
-  padding: var(--space-3);
+  width: min(100%, 30rem);
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
   pointer-events: auto;
 }
 
 .screen[data-phase="menu"] .menu-action {
+  width: fit-content;
+  max-width: 100%;
   min-height: var(--target-min);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-control);
-  background: #f4ead8;
-  box-shadow: 0 2px 0 #d0b991;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--color-text);
+  font-size: clamp(1.125rem, 1.8vw, 1.625rem);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: left;
+  white-space: normal;
+  transition: color 120ms ease;
 }
+
 
 .screen[data-phase="menu"] .menu-action:hover,
 .screen[data-phase="menu"] .menu-action:focus-visible {
-  background: #ead9bd;
-  color: var(--color-text);
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-focus);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  transform: none;
+}
+
+.menu-settings-sound-toggle {
+  width: 100%;
+  text-align: left;
+}
+
+.menu-settings-close {
+  display: block;
+  margin: var(--space-4) 0 0 auto;
+}
+
+@media (max-height: 28rem) and (orientation: landscape) {
+  .menu-settings-dialog fieldset {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
