@@ -75,7 +75,7 @@ if (!supportsWebGL2()) {
     (window.location.hash.startsWith('#tiket=') || window.location.hash === '#guru');
   machine = createGameMachine(hasIncomingTicket ? 'tiket' : 'menu');
 
-  setupScene(app, () => engine.getState(), (selIdx) => {
+  const board = setupScene(app, () => engine.getState(), (selIdx) => {
     window.dispatchEvent(new CustomEvent('board-tile-click', { detail: { selIdx } }));
   }, models);
 
@@ -88,16 +88,19 @@ if (!supportsWebGL2()) {
       return engine.dispatch(action);
     },
     canContinue: loadResult.status === 'valid',
+    onPlacementModeChange(active) {
+      board.setPlacementMode(active);
+    },
     continueLabel: completed
       ? 'Lihat hasil tersimpan'
-      : `Lanjutkan (ronde ${loadResult.status === 'valid' ? loadResult.state.ronde : 1})`,
+      : `Lanjutkan permainan (ronde ${loadResult.status === 'valid' ? loadResult.state.ronde : 1})`,
     statusMessage: loadResult.status === 'invalid' ? loadResult.message : undefined,
     onStartNew() {
       saveRepository.clear();
       const state = baruGame(createSessionSeed());
       state.setelan.audio = loadSettings().audio;
       engine = createGameEngine(state, saveState);
-      engine.dispatch({ type: 'TRANSISI_FASE', fase: 'tutorial' });
+      engine.dispatch({ type: 'TRANSISI_FASE', fase: 'ronde' });
       return engine.getState().fase;
     },
     onContinue(): Phase | null {

@@ -119,6 +119,8 @@ export interface BoardGrid {
   readonly tiles: readonly BoardTile[];
   updateOccupancy(occupancy: readonly (number | null)[]): void;
   updateFocus(cellIndex: number | null, occupancy: readonly (number | null)[]): void;
+  setPlacementMode(active: boolean, occupancy: readonly (number | null)[]): void;
+  animatePlacementTargets(now: number, reducedMotion: boolean): void;
   dispose(): void;
 }
 
@@ -178,6 +180,12 @@ export function createBoardGrid(grassDotColor: string, buildableDotColor: string
   const occupiedMaterial = new MeshStandardMaterial({ color: occupiedColor, roughness: 1 });
   const focusGeometry = new EdgesGeometry(new BoxGeometry(TILE_SIZE * 0.9, 0.01, TILE_SIZE * 0.9));
   const focusMaterial = new LineBasicMaterial({ color: focusColor });
+  const placementMaterial = new LineBasicMaterial({
+    color: focusColor,
+    transparent: true,
+    opacity: 0.72,
+    depthWrite: false,
+  });
   const previewMaterial = new MeshStandardMaterial({
     color: grassColor,
     transparent: true,
@@ -265,10 +273,26 @@ export function createBoardGrid(grassDotColor: string, buildableDotColor: string
       tiles.push(tile);
     }
   }
+  const placementTargets = buildableCells.map((cellIndex) => {
+    const target = new LineSegments(focusGeometry, placementMaterial);
+    const tile = tileByCellIndex[cellIndex];
+    if (tile) target.position.set(tile.position.x, TILE_HEIGHT + 0.012, tile.position.z);
+    target.visible = false;
+    group.add(target);
+    return { cellIndex, object: target };
+  });
+  let placementModeActive = false;
 
   grassDots.instanceMatrix.needsUpdate = true;
   buildableDots.instanceMatrix.needsUpdate = true;
   group.add(grassDots, buildableDots);
+
+  const updatePlacementTargets = (occupancy: readonly (number | null)[]): void => {
+    for (const { cellIndex, object } of placementTargets) {
+      object.visible = placementModeActive &&
+        (occupancy[cellIndex] === null || occupancy[cellIndex] === undefined);
+    }
+  };
 
   return {
     group,
@@ -280,6 +304,7 @@ export function createBoardGrid(grassDotColor: string, buildableDotColor: string
         const occupiedSurface = occupiedSurfaces[cellIndex];
         if (occupiedSurface) occupiedSurface.visible = occupied;
       }
+      if (placementModeActive) updatePlacementTargets(occupancy);
     },
     updateFocus(cellIndex, occupancy) {
       if (cellIndex === null) {
@@ -303,6 +328,18 @@ export function createBoardGrid(grassDotColor: string, buildableDotColor: string
       preview.position.z = tile.position.z;
       preview.visible = valid;
     },
+    setPlacementMode(active, occupancy) {
+      placementModeActive = active;
+      updatePlacementTargets(occupancy);
+    },
+    animatePlacementTargets(now, reducedMotion) {
+      const phase = now / 2100 * Math.PI * 2;
+      const lift = reducedMotion ? 0 : (Math.sin(phase) + 1) * 0.02;
+      placementMaterial.opacity = reducedMotion ? 0.78 : 0.56 + (Math.sin(phase) + 1) * 0.12;
+      for (const { object } of placementTargets) {
+        if (object.visible) object.position.y = TILE_HEIGHT + 0.012 + lift;
+      }
+    },
     dispose() {
       surfaceGeometry.dispose();
       occupiedSurfaceGeometry.dispose();
@@ -320,6 +357,7 @@ export function createBoardGrid(grassDotColor: string, buildableDotColor: string
       previewMaterial.dispose();
       soilGeometry.dispose();
       soilMaterial.dispose();
+      placementMaterial.dispose();
     },
   };
 }
