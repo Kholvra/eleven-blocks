@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import balance from '../src/data/balance.json';
+import events from '../src/data/events.json';
 import cards from '../src/data/cards.json';
 import { biayaKartu, kodeKartu } from '../src/game/cards';
 import { createGameEngine } from '../src/game/engine';
@@ -21,6 +22,8 @@ type RoundLog = {
   budgetBefore: number;
   budgetAfter: number;
   meters: GameState['meter'];
+  eventChoice: string | null;
+  eventCost: number;
   pendingChoices: number;
   pendingEffects: number;
   alternatives: RoundOption[];
@@ -33,7 +36,7 @@ type SessionResult = {
   rounds: RoundLog[];
   final: { stars: number | null; mi: number | null; status: string; meters: GameState['meter'] };
   elapsedMs: number;
-  eventChoicesSimulated: false;
+  eventChoicesSimulated: true;
   eventChoiceNote: string;
 };
 
@@ -117,8 +120,21 @@ function playSession(seed: string, strategy: Strategy | 'no-purchase' | 'high-gr
   const rounds: RoundLog[] = [];
 
   for (let round = 1; round <= 10; round += 1) {
+    const state = engine.getState();
+    let eventChoice: string | null = null;
+    let eventCost = 0;
+    if (state.fase === 'event' && state.eventAktif !== null) {
+      const event = events.event.find((item) => item.id === state.eventAktif?.id);
+      const choice = event?.pilihan.find((item) => item.biaya <= state.anggaran);
+      if (!event || !choice) throw new Error(`No affordable event option in round ${round}`);
+      eventChoice = choice.id;
+      eventCost = choice.biaya;
+      dispatch({ type: 'PILIH_EVENT', eventId: event.id, pilihanId: choice.id });
+    } else if (state.catatan.at(-1)?.ronde === round && state.catatan.at(-1)?.pilihanEvent === 'lewati_tanpa_efek') {
+      eventChoice = 'lewati_tanpa_efek';
+    }
+
     const before = engine.getState().anggaran;
-    dispatch({ type: 'PROSES_TAHAP_RONDE' });
     const hand = engine.getState().tangan;
     const alternatives = getRoundOptions(hand, before);
     const forceK14 = options.forceK14Round === round
@@ -136,10 +152,8 @@ function playSession(seed: string, strategy: Strategy | 'no-purchase' | 'high-gr
     if (policy !== null) {
       cost = biayaKartu(policy) ?? 0;
       dispatch({ type: 'MAIN_KARTU', kartuIdx: policy });
-    }
-    for (const stage of ['resolusi', 'reaksi', 'transisi'] as const) {
-      dispatch({ type: 'PROSES_TAHAP_RONDE' });
-      if (engine.getState().tahapRonde !== stage) throw new Error(`Unexpected stage in round ${round}`);
+    } else {
+      dispatch({ type: 'LEWATI_RONDE' });
     }
     const afterPurchase = engine.getState().anggaran;
     expect(afterPurchase).toBeGreaterThanOrEqual(0);
@@ -152,6 +166,8 @@ function playSession(seed: string, strategy: Strategy | 'no-purchase' | 'high-gr
       round,
       policy: policyCode,
       cost,
+      eventChoice,
+      eventCost,
       budgetBefore: before,
       budgetAfter: afterRound.anggaran,
       meters: { ...afterRound.meter },
@@ -178,8 +194,8 @@ function playSession(seed: string, strategy: Strategy | 'no-purchase' | 'high-gr
       meters: { ...finalState.meter },
     },
     elapsedMs: performance.now() - started,
-    eventChoicesSimulated: false,
-    eventChoiceNote: 'Event-choice behavior is absent from createGameEngine; no event choices are simulated.',
+    eventChoicesSimulated: true,
+    eventChoiceNote: 'At each scheduled interactive event, choose the first affordable option in canonical JSON order.',
   };
 }
 
@@ -236,8 +252,8 @@ describe('REQ-017 repeatable ten-round balance simulations', () => {
         expect(first.rounds).toHaveLength(10);
         expect(repeated.rounds).toEqual(first.rounds);
         expect(repeated.final).toEqual(first.final);
-        expect(first.eventChoicesSimulated).toBe(false);
-        expect(first.eventChoiceNote).toContain('absent');
+        expect(first.eventChoicesSimulated).toBe(true);
+        expect(first.eventChoiceNote).toContain('first affordable option');
         expect(first.rounds.every((round) => round.alternatives.length > 0 && round.decisionReason.length > 0)).toBe(true);
         first.rounds.forEach((round, index) => expect(round.round).toBe(index + 1));
         matchedSessions.push(first);
@@ -269,6 +285,9 @@ describe('REQ-017 repeatable ten-round balance simulations', () => {
   it('completes ten rounds without any purchases', () => {
     const result = playSession('req017-no-purchase', 'no-purchase');
     expect(result.rounds.every((round) => round.policy === null && round.cost === 0)).toBe(true);
+    expect(result.rounds.filter((round) => [3, 6, 9].includes(round.round))
+      .map(({ eventChoice, eventCost }) => [eventChoice, eventCost]))
+      .toEqual([['posko_siaga', 8], ['dialog', 4], ['walking_bus', 3]]);
     expect(result.rounds).toHaveLength(10);
     report(result);
   });

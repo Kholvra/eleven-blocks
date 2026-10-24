@@ -4,6 +4,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const eventConditionRules = JSON.parse(readFileSync(join(root, 'src/data/event-conditions.json'), 'utf8'));
 const meters = new Set(['udara', 'akses', 'hijau', 'warga']);
 const categories = new Set(['transport', 'tata-guna-lahan', 'air', 'sampah', 'hijau', 'energi', 'permukiman', 'ekonomi']);
 const numericTokenPattern = /\b\d+(?:[.,]\d+)?%?\b/g;
@@ -129,7 +130,14 @@ function validateSources(record, file, idx) {
   });
 }
 
-function validateDelayed(effects, file, field, idx) {
+function validateEventCondition(syarat, file, field, idx, eventId) {
+  if (typeof syarat !== 'string' || syarat.trim() === '') {
+    fail(file, field, 'wajib berupa teks yang tidak kosong', idx);
+  } else if (!(eventConditionRules[eventId] ?? []).some((rule) => rule.syarat === syarat)) {
+    fail(file, field, `syarat tidak didukung untuk event ${eventId}`, idx);
+  }
+}
+function validateDelayed(effects, file, field, idx, eventId) {
   if (effects === undefined) return;
   if (!Array.isArray(effects)) {
     fail(file, field, 'wajib berupa array', idx);
@@ -146,9 +154,29 @@ function validateDelayed(effects, file, field, idx) {
     }
     validateEffect(entry.efek, file, `${entryField}.efek`, idx);
     requiredString(entry, 'catatan', file, idx);
-    if (entry.syarat !== undefined) requiredString(entry, 'syarat', file, idx);
+    if (entry.syarat !== undefined) validateEventCondition(entry.syarat, file, `${entryField}.syarat`, idx, eventId);
     for (const key of Object.keys(entry)) {
       if (!['setelahRonde', 'efek', 'catatan', 'syarat'].includes(key)) fail(file, `${entryField}.${key}`, 'kunci tertunda tidak dikenal', idx);
+    }
+  });
+}
+
+function validateConditionalEffects(effects, file, field, idx, eventId) {
+  if (effects === undefined) return;
+  if (!Array.isArray(effects)) {
+    fail(file, field, 'wajib berupa array', idx);
+    return;
+  }
+  effects.forEach((entry, position) => {
+    const entryField = `${field}[${position}]`;
+    if (!isObject(entry)) {
+      fail(file, entryField, 'wajib berupa objek', idx);
+      return;
+    }
+    validateEventCondition(entry.syarat, file, `${entryField}.syarat`, idx, eventId);
+    validateEffect(entry.efek, file, `${entryField}.efek`, idx);
+    for (const key of Object.keys(entry)) {
+      if (!['syarat', 'efek'].includes(key)) fail(file, `${entryField}.${key}`, 'kunci efek kondisional tidak dikenal', idx);
     }
   });
 }
@@ -374,7 +402,8 @@ function validateEvents(data, file) {
         if (!Number.isInteger(choice.biaya) || choice.biaya < 0) fail(file, `${field}.biaya`, 'wajib berupa bilangan bulat non-negatif (poin abstrak)', idx);
         if (contract && contract.costs[position] !== choice.biaya) fail(file, `${field}.biaya`, `wajib ${contract.costs[position]} untuk ${event.id}`, idx);
         validateEffect(choice.efek, file, `${field}.efek`, idx);
-        if (choice.efek_tertunda !== undefined) validateDelayed(choice.efek_tertunda, file, `${field}.efek_tertunda`, idx);
+        if (choice.efek_tertunda !== undefined) validateDelayed(choice.efek_tertunda, file, `${field}.efek_tertunda`, idx, event.id);
+        if (choice.efek_kondisional !== undefined) validateConditionalEffects(choice.efek_kondisional, file, `${field}.efek_kondisional`, idx, event.id);
       });
     }
     validateSources(event, file, idx);

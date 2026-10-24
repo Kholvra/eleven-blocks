@@ -53,13 +53,19 @@ describe('hitungPreview', () => {
   });
 
   it('resolves known conditional effects at their due horizons', () => {
-    const result = hitungPreview(playable({ tangan: [2] }), { type: 'policy', kartuIdx: 2, selIdx: 17 });
+    const result = hitungPreview(playable({ tangan: [2], eventTerpakai: ['E01', 'E02', 'E03'] }), { type: 'policy', kartuIdx: 2, selIdx: 17 });
 
     expect(result.horizons[0]?.delta).toEqual({ udara: 3, akses: 3, warga: -1 });
     expect(result.horizons[0]?.lengkap).toBe(true);
     expect(result.horizons[1]?.lengkap).toBe(true);
     expect(result.horizons[1]?.delta).toEqual({ udara: 4, akses: 1, warga: -1 });
     expect(result.catatan.join(' ')).not.toMatch(/K04 tidak ada/);
+  });
+  it('marks future horizons incomplete when interactive event choices are outside the preview', () => {
+    const result = hitungPreview(playable(), { type: 'policy', kartuIdx: 0, selIdx: 17 });
+
+    expect(result.horizons.map(({ lengkap }) => lengkap)).toEqual([true, false, false]);
+    expect(result.catatan.join(' ')).toContain('pilihan masa depan');
   });
 
   it('marks only horizons affected by unsupported pending conditions incomplete', () => {
@@ -116,20 +122,14 @@ describe('hitungPreview', () => {
   });
 
   it('matches the resolver for pending effects as rounds advance', () => {
-    const initial = playable({ tangan: [0], ronde: 1 });
+    const initial = playable({ tangan: [0], ronde: 1, eventTerpakai: ['E01', 'E02', 'E03'] });
     initial.antrian.push({ ronde: 3, sumber: 'K02', efek: { akses: 2 } });
     const preview = hitungPreview(initial, { type: 'policy', kartuIdx: 0, selIdx: 17 });
     const engine = createGameEngine(initial, undefined, () => 0);
     expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 0, selIdx: 17 })).toBe(true);
-    for (let round = 1; round <= 6; round += 1) {
-      engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-      engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-      engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-      engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-      if (round < 6) {
-        engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
-        engine.dispatch({ type: 'SELESAI_RONDE' });
-      }
+    for (let round = 1; round < 6; round += 1) {
+      expect(engine.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
+      expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
     }
     const predicted = preview.horizons[1]?.delta;
     const actual = engine.getState().meter;
