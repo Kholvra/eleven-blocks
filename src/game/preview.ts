@@ -18,6 +18,12 @@ export interface PreviewHorizon {
   lengkap: boolean;
 }
 
+export interface PreviewJadwal {
+  ronde: number;
+  delta: Efek;
+  lengkap: boolean;
+}
+
 export interface PreviewResult {
   status: 'ready' | 'invalid';
   reason: string | null;
@@ -25,6 +31,7 @@ export interface PreviewResult {
   dapatDimainkan: boolean;
   tanpaPerubahan: boolean;
   horizons: PreviewHorizon[];
+  jadwal: PreviewJadwal[];
   catatan: string[];
 }
 
@@ -34,7 +41,7 @@ const horizonLabels: Record<PreviewHorizon['id'], string> = { sekarang: 'Sekaran
 
 export function hitungPreview(state: GameState, candidate: PreviewCandidate): PreviewResult {
   const invalid = (reason: string, biaya: number | null = null): PreviewResult => ({
-    status: 'invalid', reason, biaya, dapatDimainkan: false, tanpaPerubahan: false, horizons: [], catatan: [],
+    status: 'invalid', reason, biaya, dapatDimainkan: false, tanpaPerubahan: false, horizons: [], jadwal: [], catatan: [],
   });
   try {
     if (!Number.isInteger(state.ronde) || state.ronde < 1 || state.ronde > 10) return invalid('Ronde tidak valid.');
@@ -79,6 +86,7 @@ export function hitungPreview(state: GameState, candidate: PreviewCandidate): Pr
     }
     if (!playable) notes.push('Dana kurang; angka dihitung sebagai perkiraan, aksi tidak dapat dimainkan.');
 
+    const jadwal = buildSchedule(source, state.ronde, initial);
     const engine = createGameEngine(initial, undefined, () => initial.waktuSimpan);
     engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
     engine.dispatch({ type: 'PROSES_TAHAP_RONDE' });
@@ -111,14 +119,39 @@ export function hitungPreview(state: GameState, candidate: PreviewCandidate): Pr
     const horizons = horizonIds.map((id, index) => ({ id, label: horizonLabels[id], ronde: targetRounds[index] ?? 10, delta: deltas[index] ?? {}, lengkap: completeness[index] ?? true }));
     const tanpaPerubahan = horizons.every(({ delta }) => meterKeys.every((key) => delta[key] === undefined || delta[key] === 0));
     if (tanpaPerubahan) notes.push('Tanpa perubahan meter.');
-    return { status: 'ready', reason: null, biaya: cost, dapatDimainkan: playable, tanpaPerubahan, horizons, catatan: notes };
+    return { status: 'ready', reason: null, biaya: cost, dapatDimainkan: playable, tanpaPerubahan, horizons, jadwal, catatan: notes };
   } catch {
     return invalid('Preview tidak dapat dihitung sekarang.');
   }
 }
 
-function effectsFor(source: string): { tertunda?: Array<{ setelahRonde: number; syarat?: string }> } | undefined {
+function effectsFor(source: string): { langsung?: Efek; tertunda?: Array<{ setelahRonde: number; efek: Efek; syarat?: string }> } | undefined {
   return cards.kebijakan.find((item) => item.id === source)?.efek ?? actions.aksi.find((item) => item.id === source)?.efek;
+}
+
+function buildSchedule(source: string, round: number, state: GameState): PreviewJadwal[] {
+  const effects = effectsFor(source);
+  if (!effects) return [];
+  const owned = ownedCodesFor(state);
+  const rows = new Map<number, { delta: Efek; lengkap: boolean }>();
+  const add = (dueRound: number, delta: Efek, complete: boolean) => {
+    const row = rows.get(dueRound) ?? { delta: {}, lengkap: true };
+    for (const key of meterKeys) {
+      const value = delta[key];
+      if (value !== undefined) row.delta[key] = (row.delta[key] ?? 0) + value;
+    }
+    row.lengkap &&= complete;
+    rows.set(dueRound, row);
+  };
+  add(round, effects.langsung ?? {}, true);
+  for (const item of effects.tertunda ?? []) {
+    const complete = item.syarat === undefined || evaluateCondition(source, item.syarat, owned) !== undefined;
+    add(Math.min(10, round + item.setelahRonde), item.efek, complete);
+  }
+  return [...rows.entries()]
+    .sort(([a], [b]) => a - b)
+    .filter(([, row]) => Object.values(row.delta).some((value) => value !== 0))
+    .map(([ronde, row]) => ({ ronde, delta: row.delta, lengkap: row.lengkap }));
 }
 
 function ownedCodesFor(state: GameState): Set<string> {
