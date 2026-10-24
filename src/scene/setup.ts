@@ -1,10 +1,10 @@
 import { AmbientLight, Color, DirectionalLight, OrthographicCamera, Scene, Vector3, WebGLRenderer, type Object3D } from 'three';
 import { cellAtPointer, isPlacementCellAvailable } from './placement';
 import buildableCells from '../data/board.json';
+import { hashSeed } from '../game/rng';
 import type { GameState } from '../game/types';
 import { createBoardGrid } from './grid';
 import { createBuildingLayer } from './buildings';
-import { createDistrictIdentity } from './district';
 import { createAdaptiveQuality } from './perf';
 
 export function setupScene(
@@ -26,11 +26,13 @@ export function setupScene(
   root.append(debugOutput);
   const adaptiveQuality = createAdaptiveQuality(renderer, initialPixelRatio, debugOutput.hidden ? null : debugOutput);
   const rootStyles = getComputedStyle(document.documentElement);
-  const pageColor = rootStyles.getPropertyValue('--color-page').trim();
-  const surfaceColor = rootStyles.getPropertyValue('--color-surface').trim();
+  const grassDotColor = rootStyles.getPropertyValue('--color-tile-grass-dot').trim();
+  const buildableDotColor = rootStyles.getPropertyValue('--color-page').trim();
   const airColor = rootStyles.getPropertyValue('--color-meter-air').trim();
   const accessColor = rootStyles.getPropertyValue('--color-meter-access').trim();
   const accentColor = rootStyles.getPropertyValue('--color-meter-green').trim();
+  const soilColor = rootStyles.getPropertyValue('--color-soil').trim();
+  const occupiedColor = rootStyles.getPropertyValue('--card-policy').trim();
   const borderColor = rootStyles.getPropertyValue('--color-border').trim();
   const focusColor = rootStyles.getPropertyValue('--color-focus').trim();
   renderer.setClearColor(new Color(rootStyles.getPropertyValue('--color-sky').trim() || '#bce9f8'));
@@ -47,19 +49,10 @@ export function setupScene(
     onPlace ? 'ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space Escape' : 'ArrowUp ArrowDown ArrowLeft ArrowRight Escape',
   );
   root.prepend(renderer.domElement);
-
   const scene = new Scene();
-  const district = createDistrictIdentity({
-    page: pageColor,
-    surface: surfaceColor,
-    air: airColor,
-    access: accessColor,
-    green: accentColor,
-    border: borderColor,
-  });
-  const grid = createBoardGrid(pageColor, surfaceColor, accentColor, focusColor);
+  const grid = createBoardGrid(grassDotColor, buildableDotColor, accentColor, soilColor, occupiedColor, focusColor, hashSeed(getState().seed));
   const buildings = createBuildingLayer(models, grid.tiles);
-  scene.add(district, buildings.group, grid.group);
+  scene.add(buildings.group, grid.group);
   scene.add(new AmbientLight(0xffffff, 1.8));
   const keyLight = new DirectionalLight(0xffffff, 2.2);
   keyLight.position.set(-5, 10, 6);
