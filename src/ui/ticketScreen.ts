@@ -70,7 +70,7 @@ export function createTicketScreen(options: TicketScreenOptions): TicketScreen {
 
 function createTicketElements(): TicketElements {
   const form = document.createElement('form');
-  form.className = 'ticket-form';
+  form.className = 'ticket-form ui-panel';
   form.noValidate = true;
   const status = document.createElement('p');
   status.className = 'ticket-status';
@@ -81,11 +81,11 @@ function createTicketElements(): TicketElements {
   error.setAttribute('role', 'alert');
   error.hidden = true;
   const result = document.createElement('section');
-  result.className = 'ticket-result';
+  result.className = 'ticket-result ui-panel';
   result.setAttribute('aria-label', 'Tiket yang dibuat');
   result.hidden = true;
   const inbound = document.createElement('section');
-  inbound.className = 'ticket-inbound';
+  inbound.className = 'ticket-inbound ui-panel';
   inbound.setAttribute('aria-live', 'polite');
   inbound.hidden = true;
   const nameInput = document.createElement('input');
@@ -361,7 +361,7 @@ function renderIncomingPayload(
 
 function createTeacherReceiver(context: TicketContext): TeacherReceiver {
   const section = document.createElement('section');
-  section.className = 'teacher-receiver';
+  section.className = 'teacher-receiver ui-panel';
   const instructions = document.createElement('p');
   instructions.className = 'ticket-intro';
   instructions.textContent = 'Tempel satu tautan tiket, fragmen #tiket=, atau ringkasan teks dari pengirim. Tampilan ini hanya untuk membaca.';
@@ -389,7 +389,7 @@ function createTeacherReceiver(context: TicketContext): TeacherReceiver {
   submit.type = 'submit';
   submit.textContent = 'Tampilkan tiket';
   const output = document.createElement('section');
-  output.className = 'ticket-inbound';
+  output.className = 'ticket-inbound ui-panel';
   output.setAttribute('aria-live', 'polite');
   const directStatus = document.createElement('p');
   directStatus.setAttribute('role', 'status');

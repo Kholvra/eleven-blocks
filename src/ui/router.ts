@@ -2,14 +2,14 @@ import hudCopy from '../data/hud.json';
 import { createHud, type HudRenderer } from './hud';
 import type { GameAction } from '../game/engine';
 import type { GameState } from '../game/types';
-import { mountAccessibilityControls } from './accessibilityControls';
+import { mountAccessibilityControls, mountAccessibilityOptions } from './accessibilityControls';
 import { createAudioController } from '../audio/audio';
 import type { GameMachine, Phase } from '../game/machine';
 import { composeLaporanKota, type SkorAkhir } from '../game/report';
 import { createTicketScreen } from './ticketScreen';
-import { createContextualTip, createTutorialGuide, createTutorialSteps, tutorialLabels } from './tutorial';
-const phaseCopy: Record<Phase, { title: string; description: string }> = {
-  menu: { title: 'Eleven Blocks', description: 'Sepuluh ronde untuk satu distrik.' },
+import { createTutorialGuide } from './tutorial';
+const phaseCopy: Record<Phase, { title: string; description?: string }> = {
+  menu: { title: 'Eleven Blocks' },
   tutorial: { title: 'Tutorial', description: 'Pengenalan permainan' },
   ronde: { title: 'Ronde', description: 'Layar permainan' },
   event: { title: 'Berita kota', description: 'Layar peristiwa' },
@@ -27,6 +27,7 @@ export interface ScreenRouterOptions {
   onStartNew(): Phase;
   onContinue(): Phase | null;
   onAudioChange(enabled: boolean): void;
+  onPlacementModeChange(active: boolean): void;
   getGameState(): GameState;
   hitungSkorAkhir(state: GameState): SkorAkhir;
 }
@@ -45,6 +46,26 @@ export function createScreenRouter(
   const huds: Partial<Record<Phase, HudRenderer>> = {};
   const audio = createAudioController();
   const soundToggles: HTMLButtonElement[] = [];
+
+  const createSoundToggle = (): HTMLButtonElement => {
+    const soundToggle = document.createElement('button');
+    soundToggle.className = 'sound-toggle';
+    soundToggle.type = 'button';
+    soundToggle.setAttribute('aria-label', 'Suara');
+    soundToggle.setAttribute('aria-pressed', String(audio.isEnabled()));
+    soundToggle.textContent = audio.isEnabled() ? 'Suara: aktif' : 'Suara: mati';
+    soundToggle.addEventListener('click', () => {
+      audio.setEnabled(!audio.isEnabled());
+      const enabled = audio.isEnabled();
+      for (const toggle of soundToggles) {
+        toggle.setAttribute('aria-pressed', String(enabled));
+        toggle.textContent = enabled ? 'Suara: aktif' : 'Suara: mati';
+      }
+      options.onAudioChange(enabled);
+    });
+    soundToggles.push(soundToggle);
+    return soundToggle;
+  };
   let statusMessage = options.statusMessage ?? '';
   const statusTexts: HTMLElement[] = [];
   const ticketScreen = createTicketScreen({
@@ -76,29 +97,16 @@ export function createScreenRouter(
       }
       heading.prepend(brandMark);
     }
-    const description = document.createElement('p');
-    description.textContent = copy.description;
-
-    const soundToggle = document.createElement('button');
-    soundToggle.className = 'sound-toggle';
-    soundToggle.type = 'button';
-    soundToggle.setAttribute('aria-label', 'Suara');
-    soundToggle.setAttribute('aria-pressed', String(audio.isEnabled()));
-    soundToggle.textContent = audio.isEnabled() ? 'Suara: aktif' : 'Suara: mati';
-    soundToggle.addEventListener('click', () => {
-      audio.setEnabled(!audio.isEnabled());
-      const enabled = audio.isEnabled();
-      for (const toggle of soundToggles) {
-        toggle.setAttribute('aria-pressed', String(enabled));
-        toggle.textContent = enabled ? 'Suara: aktif' : 'Suara: mati';
-      }
-      options.onAudioChange(enabled);
-    });
-    soundToggles.push(soundToggle);
-    screen.append(heading, description, soundToggle);
+    screen.append(heading);
+    if (copy.description) {
+      const description = document.createElement('p');
+      description.textContent = copy.description;
+      screen.append(description);
+    }
+    if (phase !== 'menu') screen.append(createSoundToggle());
     if (phase === 'laporan') {
       const results = document.createElement('section');
-      results.className = 'results-content';
+      results.className = 'results-content ui-panel';
       results.setAttribute('aria-labelledby', 'results-heading');
 
       const resultHeading = document.createElement('h2');
@@ -120,7 +128,18 @@ export function createScreenRouter(
     }
 
     if (phase === 'tiket') {
-      screen.append(ticketScreen.intro, ticketScreen.form, ticketScreen.status, ticketScreen.result, ticketScreen.inbound, teacherReceiver.element);
+      const backToMenu = document.createElement('button');
+      backToMenu.className = 'menu-action ticket-back-menu';
+      backToMenu.type = 'button';
+      backToMenu.textContent = '🏠 Kembali ke Menu Utama';
+      backToMenu.addEventListener('click', () => {
+        if (location.hash.startsWith('#tiket=') || location.hash === '#guru' || location.hash === '#tiket') {
+          history.pushState(null, '', location.pathname + location.search);
+        }
+        machine.restore('menu');
+        render();
+      });
+      screen.append(ticketScreen.intro, ticketScreen.form, ticketScreen.status, ticketScreen.result, ticketScreen.inbound, teacherReceiver.element, backToMenu);
     }
 
     if (phase === 'tutorial') {
@@ -138,7 +157,7 @@ export function createScreenRouter(
       const start = document.createElement('button');
       start.className = 'menu-action';
       start.type = 'button';
-      start.textContent = 'Mulai sesi baru';
+      start.textContent = 'Mulai baru';
       start.addEventListener('click', () => {
         machine.restore(options.onStartNew());
         render();
@@ -159,12 +178,45 @@ export function createScreenRouter(
         actions.append(continueButton);
       }
 
-      const howToPlay = document.createElement('details');
-      howToPlay.className = 'menu-help tutorial-tip';
-      const helpSummary = document.createElement('summary');
-      helpSummary.textContent = tutorialLabels.howToPlay;
-      howToPlay.append(helpSummary, createTutorialSteps(), createContextualTip('menu'));
-      actions.append(howToPlay);
+      const settingsTrigger = document.createElement('button');
+      settingsTrigger.className = 'menu-action menu-settings-trigger';
+      settingsTrigger.type = 'button';
+      settingsTrigger.textContent = 'Pengaturan';
+      settingsTrigger.setAttribute('aria-haspopup', 'dialog');
+      settingsTrigger.setAttribute('aria-expanded', 'false');
+
+      const settingsDialog = document.createElement('dialog');
+      settingsDialog.id = 'menu-settings-dialog';
+      settingsDialog.className = 'accessibility-dialog ui-panel menu-settings-dialog';
+      settingsDialog.setAttribute('aria-labelledby', 'menu-settings-title');
+      settingsTrigger.setAttribute('aria-controls', settingsDialog.id);
+
+      const settingsHeading = document.createElement('h2');
+      settingsHeading.id = 'menu-settings-title';
+      settingsHeading.textContent = 'Pengaturan';
+
+      const soundToggle = createSoundToggle();
+      soundToggle.classList.add('menu-settings-sound-toggle');
+      settingsDialog.append(settingsHeading, soundToggle);
+      const syncAccessibilityOptions = mountAccessibilityOptions(settingsDialog);
+
+      const settingsClose = document.createElement('button');
+      settingsClose.className = 'menu-settings-close';
+      settingsClose.type = 'button';
+      settingsClose.textContent = 'Selesai';
+      settingsClose.addEventListener('click', () => settingsDialog.close());
+      settingsDialog.append(settingsClose);
+
+      settingsTrigger.addEventListener('click', () => {
+        syncAccessibilityOptions();
+        settingsTrigger.setAttribute('aria-expanded', 'true');
+        settingsDialog.showModal();
+      });
+      settingsDialog.addEventListener('close', () => {
+        settingsTrigger.setAttribute('aria-expanded', 'false');
+        settingsTrigger.focus();
+      });
+      actions.append(settingsTrigger);
 
       const phaseStatus = document.createElement('p');
       phaseStatus.className = 'save-status';
@@ -172,7 +224,7 @@ export function createScreenRouter(
       phaseStatus.setAttribute('aria-live', 'polite');
       phaseStatus.textContent = phase === 'menu' ? statusMessage : '';
       statusTexts.push(phaseStatus);
-      screen.append(actions, phaseStatus);
+      screen.append(actions, phaseStatus, settingsDialog);
     }
     if (phase !== 'menu') {
       const phaseStatus = document.createElement('p');
@@ -187,20 +239,22 @@ export function createScreenRouter(
       huds[phase] = createHud(screen, {
         getState: options.getState,
         dispatch: options.dispatch,
+        onPlacementModeChange: options.onPlacementModeChange,
         onStateChange() {
           machine.restore(options.getState().fase);
           render();
         },
       });
     }
-    mountAccessibilityControls(screen);
+    if (phase !== 'menu') mountAccessibilityControls(screen);
     root.append(screen);
     screens[phase] = screen;
   }
 
   function render(): void {
+    const currentMachine = machine.getPhase();
     const statePhase = options.getState().fase;
-    if (machine.getPhase() !== statePhase) machine.restore(statePhase);
+    if (currentMachine !== 'menu' && currentMachine !== statePhase) machine.restore(statePhase);
     const incoming = location.hash.startsWith('#tiket=');
     const receiving = incoming || location.hash === '#guru';
     const current = receiving ? 'tiket' : machine.getPhase();

@@ -1,5 +1,14 @@
 import { Raycaster, Vector2, type Camera, type Intersection, type Object3D } from 'three';
+import buildableCells from '../data/board.json';
 import type { BoardTile } from './grid';
+
+export function isPlacementCellAvailable(
+  cellIndex: number,
+  occupancy: readonly (number | null)[],
+): boolean {
+  const occupied = occupancy[cellIndex];
+  return buildableCells.includes(cellIndex) && (occupied === null || occupied === undefined);
+}
 
 const pointer = new Vector2();
 const raycaster = new Raycaster();

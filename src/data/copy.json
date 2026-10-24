@@ -13,7 +13,7 @@
       },
       {
         "title": "Dampak",
-        "text": "Skala game 0–100; preview: sekarang, +5 ronde, akhir sesi.",
+        "text": "Skala game 0–100; preview: ronde saat efek jatuh, misalnya Ronde 3 dan Ronde 7.",
         "anchor": "tutorial-preview"
       }
     ]
@@ -23,7 +23,7 @@
     "cards": "Mainkan maksimal satu kartu per ronde. Kebijakan memakai petak kosong yang bisa dibangun; aksi tidak memakai petak.",
     "budget": "Biaya kartu memakai poin abstrak dalam permainan.",
     "meters": "Empat meter permainan: Udara, Akses & Mobilitas, Ruang Hijau, dan Kesejahteraan. Skala 0–100.",
-    "preview": "Pratinjau menunjukkan Sekarang, +5 ronde, dan Akhir sesi."
+    "preview": "Pratinjau menunjukkan ronde saat efek jatuh, misalnya Ronde 3 dan Ronde 7."
   },
   "labels": {
     "next": "Lanjut",

@@ -1,3 +1,4 @@
+import cards from '../src/data/cards.json';
 import { describe, expect, it } from 'vitest';
 import { createGameEngine } from '../src/game/engine';
 import { hitungPreview } from '../src/game/preview';
@@ -15,6 +16,21 @@ function playable(overrides: Partial<GameState> = {}): GameState {
 }
 
 describe('hitungPreview', () => {
+  it('shows direct and delayed effects in the schedule', () => {
+    const state = playable();
+    const direct = hitungPreview(state, { type: 'action', aksiId: 'ACT02' });
+    expect(direct.jadwal).toEqual([{ ronde: state.ronde, delta: { warga: 1 }, lengkap: true }]);
+
+    const delayedState = playable({ ronde: 4, tangan: [17] });
+    const delayed = hitungPreview(delayedState, { type: 'policy', kartuIdx: 17, selIdx: 17 });
+    const effect = cards.kebijakan[17]!.efek.tertunda[0]!;
+    expect(delayed.jadwal[1]).toEqual({
+      ronde: Math.min(10, delayedState.ronde + effect.setelahRonde),
+      delta: effect.efek,
+      lengkap: true,
+    });
+    expect(delayed.jadwal.map(({ ronde }) => ronde)).toEqual([4, 8]);
+  });
   it('uses resolver effects and preserves live state and RNG over repeated previews', () => {
     const state = playable();
     const before = structuredClone(state);
@@ -62,8 +78,10 @@ describe('hitungPreview', () => {
 
     expect(notInHand.status).toBe('invalid');
     expect(notInHand.horizons).toEqual([]);
+    expect(notInHand.jadwal).toEqual([]);
     expect(blockedCell.status).toBe('invalid');
     expect(blockedCell.horizons).toEqual([]);
+    expect(blockedCell.jadwal).toEqual([]);
   });
   it('rejects unknown policy indices and unavailable actions without numeric horizons', () => {
     const state = playable({ tangan: [999] });
@@ -72,6 +90,7 @@ describe('hitungPreview', () => {
 
     expect(policy.status).toBe('invalid');
     expect(policy.horizons).toEqual([]);
+    expect(policy.jadwal).toEqual([]);
     expect(action.status).toBe('ready');
     expect(action.horizons).toHaveLength(3);
   });

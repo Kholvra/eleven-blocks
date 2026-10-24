@@ -9,28 +9,7 @@ function currentFontScale(): FontScale {
   return fontScales.find((scale) => scale === value) ?? '100';
 }
 
-export function mountAccessibilityControls(root: HTMLElement): void {
-  const controls = document.createElement('div');
-  controls.className = 'accessibility-controls';
-
-  const opener = document.createElement('button');
-  opener.type = 'button';
-  opener.textContent = 'Pengaturan aksesibilitas';
-
-  const dialogId = `accessibility-dialog-title-${nextDialogId++}`;
-  const dialog = document.createElement('dialog');
-  dialog.className = 'accessibility-dialog';
-  dialog.setAttribute('aria-labelledby', dialogId);
-
-  const heading = document.createElement('h2');
-  heading.id = dialogId;
-  heading.textContent = 'Ukuran teks';
-
-  const instruction = document.createElement('p');
-  instruction.textContent = 'Pilih ukuran teks untuk sesi ini.';
-
-  const form = document.createElement('form');
-  form.method = 'dialog';
+export function mountAccessibilityOptions(root: HTMLElement): () => void {
   const options = document.createElement('fieldset');
   const legend = document.createElement('legend');
   legend.textContent = 'Ukuran teks';
@@ -59,22 +38,53 @@ export function mountAccessibilityControls(root: HTMLElement): void {
     options.append(label);
   }
 
+  root.append(options);
+  return () => {
+    const scale = currentFontScale();
+    for (const radio of radios) {
+      radio.checked = radio.value === scale;
+    }
+  };
+}
+
+export function mountAccessibilityControls(root: HTMLElement): void {
+  const controls = document.createElement('div');
+  controls.className = 'accessibility-controls';
+
+  const opener = document.createElement('button');
+  opener.type = 'button';
+  opener.textContent = 'Pengaturan aksesibilitas';
+
+  const dialogId = `accessibility-dialog-title-${nextDialogId++}`;
+  const dialog = document.createElement('dialog');
+  dialog.className = 'accessibility-dialog ui-panel';
+  dialog.setAttribute('aria-labelledby', dialogId);
+
+  const heading = document.createElement('h2');
+  heading.id = dialogId;
+  heading.textContent = 'Ukuran teks';
+
+  const instruction = document.createElement('p');
+  instruction.textContent = 'Pilih ukuran teks untuk sesi ini.';
+
+  const form = document.createElement('form');
+  form.method = 'dialog';
+  const syncOptions = mountAccessibilityOptions(form);
+
   const close = document.createElement('button');
   close.type = 'submit';
   close.value = 'tutup';
   close.textContent = 'Selesai';
 
-  form.append(options, close);
+  form.append(close);
   dialog.append(heading, instruction, form);
   controls.append(opener, dialog);
   root.append(controls);
 
   opener.addEventListener('click', () => {
-    const scale = currentFontScale();
-    for (const radio of radios) {
-      radio.checked = radio.value === scale;
-    }
+    syncOptions();
     dialog.showModal();
   });
   dialog.addEventListener('close', () => opener.focus());
+
 }

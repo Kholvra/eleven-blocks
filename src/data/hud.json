@@ -1,9 +1,21 @@
 {
   "meter": {
-    "udara": { "label": "Udara", "symbol": "◌", "factIds": ["pm25-kota-global", "pm25-who-it1"] },
-    "akses": { "label": "Akses & Mobilitas", "symbol": "↔", "factIds": ["akses-transportasi-publik", "akses-ruang-publik"] },
-    "hijau": { "label": "Ruang Hijau", "symbol": "♧", "factIds": ["rth-jakarta"] },
-    "warga": { "label": "Kesejahteraan", "symbol": "⌂", "factIds": ["pekerja-informal"] }
+    "udara": { "label": "Udara", "pendek": "Udara", "symbol": "◌", "factIds": ["pm25-kota-global", "pm25-who-it1"] },
+    "akses": { "label": "Akses & Mobilitas", "pendek": "Akses", "symbol": "↔", "factIds": ["akses-transportasi-publik", "akses-ruang-publik"] },
+    "hijau": { "label": "Ruang Hijau", "pendek": "Hijau", "symbol": "♧", "factIds": ["rth-jakarta"] },
+    "warga": { "label": "Kesejahteraan", "pendek": "Warga", "symbol": "⌂", "factIds": ["pekerja-informal"] }
+  },
+  "categories": {
+    "labels": {
+      "transport": "Transportasi",
+      "tata-guna-lahan": "Tata kota",
+      "air": "Air",
+      "sampah": "Sampah",
+      "hijau": "Ruang hijau",
+      "energi": "Energi",
+      "permukiman": "Permukiman",
+      "ekonomi": "Ekonomi"
+    }
   },
   "phase": [
     { "id": "berita", "label": "Berita Kota" },
@@ -14,38 +26,50 @@
   ],
   "copy": {
     "round": "Ronde",
-    "budget": "Anggaran tersisa",
-    "hand": "Kartu di tangan",
-    "deck": "Sisa kartu",
-    "news": "Berita kota",
-    "source": "Sumber data",
+    "news": "Berita Kota",
+
     "disclaimer": "Meter adalah skala internal permainan; model sederhana ini bukan ukuran kondisi kota nyata atau prediksi. Fakta bersumber ditampilkan terpisah sebagai konteks, bukan dasar meter.",
     "noNews": "Belum ada berita kota.",
     "invalidState": "Status permainan tidak terbaca. Muat ulang halaman.",
     "advance": "Lanjutkan ke tahap berikutnya",
+    "advanceShort": "Lanjutkan",
     "finishRound": "Selesaikan ronde",
     "finish": "Selesaikan ronde 10",
     "viewReport": "Lihat laporan kota",
     "accessibleMeter": "Meter {label}: {value}",
-    "unavailableSource": "Sumber data tidak tersedia.",
+
     "unavailableCost": "Biaya tidak tersedia.",
     "cardUnavailable": "Kartu tidak tersedia.",
-    "policy": "Kebijakan",
-    "actions": "Aksi",
-    "cost": "Biaya",
-    "playPolicy": "Terapkan kebijakan",
-    "useAction": "Gunakan {name}",
+    "policy": "Kartu kebijakan",
+    "actions": "Kartu aksi",
+    "cancel": "Batalkan",
+    "deselectCard": "Batalkan",
+    "cardAriaSelect": "Pilih {name}, kategori {category}, biaya {cost} poin.",
+    "cardAriaPlace": "Tempatkan {name}. Klik lagi untuk menaruhnya di petak kosong pertama.",
+    "cardAriaUnavailable": "{name} tidak tersedia. {reason}",
+    "cardAriaAction": "Gunakan {name}. Biaya {cost} poin.",
+    "exchangeTitle": "Tukar kartu untuk Studi Banding",
+    "exchangeBody": "Pilih satu kartu di tangan yang akan ditukar dengan kartu baru.",
+    "exchangeEmpty": "Tidak ada kartu di tangan yang bisa ditukar.",
     "exchangeCard": "Tukar {card}",
-    "eventNarrative": "Narasi peristiwa",
-    "eventInteractive": "Peristiwa dengan pilihan",
+    "actionFailed": "Aksi belum bisa dijalankan. Coba lagi.",
+    "eventRound": "Ronde {round}",
     "cellEmpty": "Petak {code} kosong.",
     "cellOccupied": "Petak {code} ditempati {card}.",
     "statusLabel": "Status permainan",
-    "meterPanel": "Meter permainan",
     "phaseSequence": "Urutan fase ronde",
     "startRound": "Mulai ronde",
     "board": "Papan kota",
     "cardList": "Daftar kartu",
-    "emptyHand": "Tidak ada kartu di tangan."
+    "moneyTitle": "Koin",
+    "trends": "Tren Dampak",
+    "resources": "4 Meter Kota",
+    "events": "Berita Kota",
+    "deckTitle": "Tumpukan Kartu",
+    "sound": "Suara",
+    "accessibility": "Aksesibilitas",
+    "howToPlay": "Cara Main",
+    "remainingRounds": "Ronde tersisa",
+    "closeSelection": "Batalkan pilihan kartu"
   }
 }

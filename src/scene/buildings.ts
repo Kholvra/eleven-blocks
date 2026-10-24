@@ -1,5 +1,6 @@
 import { Box3, Group, InstancedMesh, Matrix4, Mesh, Vector3, type Object3D } from 'three';
 import buildableCells from '../data/board.json';
+import cardArt from '../data/card-art.json';
 import cardsData from '../data/cards.json';
 import type { GameState } from '../game/types';
 import type { BoardTile } from './grid';
@@ -22,16 +23,9 @@ interface ModelPart {
   readonly sourceMatrix: Matrix4;
 }
 
-const MODEL_BY_CATEGORY: Record<string, string> = {
-  transport: 'road',
-  hijau: 'tree',
-  sampah: 'dumpster',
-  'tata-guna-lahan': 'building',
-  air: 'building',
-  energi: 'building',
-  permukiman: 'building',
-  ekonomi: 'building',
-};
+const MODEL_BY_CATEGORY: Record<string, string> = cardArt.modelByCategory;
+const MODEL_BY_CARD_ID: Record<string, string> = cardArt.modelByCardId;
+
 
 const CARD_BY_INDEX: Record<number, CardVisual> = {};
 for (const card of cardsData.kebijakan) {
@@ -86,7 +80,7 @@ export function createBuildingLayer(models: ReadonlyMap<string, Object3D>, tiles
   function visualForCell(cardIndex: number, tile: BoardTile): CellVisual | null {
     const card = CARD_BY_INDEX[cardIndex];
     if (!card) return null;
-    const modelKey = MODEL_BY_CATEGORY[card.category];
+    const modelKey = MODEL_BY_CARD_ID[card.id] ?? MODEL_BY_CATEGORY[card.category];
     const bounds = modelKey ? boundsByModel[modelKey] : undefined;
     const modelParts = modelKey ? partsByModel[modelKey] : undefined;
     if (!modelKey || !bounds || !modelParts?.length) return null;
@@ -112,7 +106,7 @@ export function createBuildingLayer(models: ReadonlyMap<string, Object3D>, tiles
           continue;
         }
         const card = Number.isInteger(cardIndex) ? CARD_BY_INDEX[cardIndex as number] : undefined;
-        const nextModelKey = card ? MODEL_BY_CATEGORY[card.category] : undefined;
+        const nextModelKey = card ? (MODEL_BY_CARD_ID[card.id] ?? MODEL_BY_CATEGORY[card.category]) : undefined;
         const previous = cells[index];
         if (!card || previous.cardIndex !== cardIndex || previous.cardId !== card.id || previous.modelKey !== nextModelKey ||
           !boundsByModel[nextModelKey ?? ''] || !partsByModel[nextModelKey ?? '']?.length) {
