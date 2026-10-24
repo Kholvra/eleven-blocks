@@ -39,6 +39,7 @@ type HudOptions = {
   getState(): GameState;
   dispatch(action: GameAction): boolean;
   onStateChange(): void;
+  onPlacementModeChange(active: boolean): void;
 };
 
 type MeterNode = { root: HTMLElement; value: HTMLOutputElement; bar: HTMLElement; delta: HTMLElement };
@@ -61,15 +62,12 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
 
   const status = document.createElement('dl');
   status.className = 'hud-status game-topbar';
-  const budgetItem = makeStatusItem(hudCopy.copy.budget);
-  const roundItem = makeStatusItem(hudCopy.copy.level);
+  const budgetItem = makeStatusItem(hudCopy.copy.moneyTitle);
+  const roundItem = makeStatusItem(hudCopy.copy.round);
   const header = document.createElement('header');
   header.className = 'hud-header game-topbar';
   const moneyCard = budgetItem.root;
   moneyCard.classList.add('game-money-card');
-  moneyCard.querySelector('dt')?.remove();
-  moneyCard.setAttribute('role', 'group');
-  moneyCard.setAttribute('aria-label', hudCopy.copy.budget);
   const levelCard = roundItem.root;
   levelCard.classList.add('game-level-card');
   const quickNav = document.createElement('nav');
@@ -195,7 +193,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   newsTitle.className = 'hud-news-toggle';
   newsTitle.textContent = hudCopy.copy.events;
   const newsBody = document.createElement('div');
-  newsBody.className = 'game-event-body ui-panel';
+  newsBody.className = 'game-event-body';
   news.append(newsTitle, newsBody);
 
   const cardList = document.createElement('ul');
@@ -280,10 +278,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   deselectButton.hidden = true;
   deselectButton.addEventListener('click', () => {
     audio.playClick();
-    selectedCardIdx = null;
-    cancelPreviewHide();
-    hidePreview();
-    deselectButton.hidden = true;
+    clearSelection();
     options.onStateChange();
   });
   const advance = document.createElement('button');
@@ -299,6 +294,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     cancelPreviewHide();
     hidePreview();
     deselectButton.hidden = true;
+    options.onPlacementModeChange(false);
   };
 
   const rightSidebar = document.createElement('aside');
@@ -364,6 +360,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     if (options.dispatch({ type: 'MAIN_KARTU', kartuIdx: selectedCardIdx, selIdx: cell })) {
       audio.playConfirm();
       selectedCardIdx = null;
+      options.onPlacementModeChange(false);
       options.onStateChange();
     }
   };
@@ -374,9 +371,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   window.addEventListener('board-tile-click', onBoardTileClick);
   hud.addEventListener('click', (event) => {
     if (selectedCardIdx === null || (event.target as HTMLElement).closest('.hud-card, .game-card-dock, .game-hud-layout, .hud-actions, .game-topbar')) return;
-    selectedCardIdx = null;
-    cancelPreviewHide();
-    hidePreview();
+    clearSelection();
     options.onStateChange();
   });
   document.addEventListener('click', (event) => {
@@ -420,6 +415,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
     if (!actionDialog.open) actionDialog.showModal();
   };
 
+  let renderedNewsRound = 0;
   let initialRender = true;
   let announcedNote = '';
 
@@ -439,14 +435,16 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
       hud.hidden = !gamePhases.includes(state.fase);
       if (hud.hidden) return;
 
-      roundItem.value.textContent = `Ronde ${state.ronde} / 10`;
+      roundItem.value.textContent = `${state.ronde}/10`;
       budgetItem.value.textContent = String(state.anggaran);
-      budgetItem.value.setAttribute('aria-label', `${state.anggaran} poin`);
+      budgetItem.value.setAttribute('aria-label', `${state.anggaran} ${hudCopy.copy.moneyTitle.toLowerCase()}`);
       deckValue.textContent = String(state.deck.length);
       deckCounter.setAttribute('aria-label', `${hudCopy.copy.deckTitle}: ${state.deck.length}`);
       soundButton.textContent = `${state.setelan.audio ? '🔊' : '🔇'} ${hudCopy.copy.sound}`;
       soundButton.setAttribute('aria-pressed', String(state.setelan.audio));
-      renderNews(newsBody, state.ronde);
+      const resetNewsScroll = renderedNewsRound !== state.ronde;
+      renderNews(newsBody, state.ronde, resetNewsScroll);
+      renderedNewsRound = state.ronde;
       const delta = latestDelta(state);
       for (const key of meterOrder) {
         const node = meterNodes[key];
@@ -475,6 +473,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
         renderPreview(preview, candidate, state, anchor);
       }, selectedCardIdx, (index) => {
         selectedCardIdx = index;
+        options.onPlacementModeChange(true);
         deselectButton.hidden = false;
         audio.playClick();
       }, audio, () => {
@@ -557,22 +556,40 @@ function formatDelta(delta: Efek): string {
   }).join(', ');
 }
 
-function renderNews(container: HTMLElement, round: number): void {
+function renderNews(container: HTMLElement, round: number, resetScroll: boolean): void {
+  const previousScrollTop = container.scrollTop;
   container.replaceChildren();
-  const event = events.event.find((item) => item.ronde === round);
-  if (!event) {
+  const roundLabel = hudCopy.copy.eventRound;
+  let hasArticle = false;
+  for (let currentRound = 1; currentRound <= round; currentRound += 1) {
+    const event = events.event.find((item) => item.ronde === currentRound);
+    if (!event) continue;
+    hasArticle = true;
+    const article = document.createElement('article');
+    article.className = 'game-event-item ui-panel';
+    const label = document.createElement('p');
+    label.className = 'game-event-round';
+    label.textContent = roundLabel.replace('{round}', String(event.ronde));
+    const title = document.createElement('h3');
+    title.textContent = event.judul;
+    const narrative = document.createElement('p');
+    narrative.textContent = event.narasi;
+    article.append(label, title, narrative);
+    container.append(article);
+  }
+  if (!hasArticle) {
     const message = document.createElement('p');
     message.textContent = hudCopy.copy.noNews;
     container.append(message);
-    return;
   }
-  const type = document.createElement('p');
-  type.textContent = event.jenis === 'interaktif' ? hudCopy.copy.eventInteractive : hudCopy.copy.eventNarrative;
-  const title = document.createElement('h2');
-  title.textContent = event.judul;
-  const narrative = document.createElement('p');
-  narrative.textContent = event.narasi;
-  container.append(type, title, narrative);
+  if (container.scrollHeight > container.clientHeight) {
+    const scrollCue = document.createElement('span');
+    scrollCue.className = 'game-event-scroll-cue';
+    scrollCue.setAttribute('aria-hidden', 'true');
+    container.prepend(scrollCue);
+  }
+
+  container.scrollTop = resetScroll ? container.scrollHeight : previousScrollTop;
 }
 
 

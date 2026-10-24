@@ -26,7 +26,6 @@
   ],
   "copy": {
     "round": "Ronde",
-    "budget": "Anggaran",
     "news": "Berita Kota",
 
     "disclaimer": "Meter adalah skala internal permainan; model sederhana ini bukan ukuran kondisi kota nyata atau prediksi. Fakta bersumber ditampilkan terpisah sebagai konteks, bukan dasar meter.",
@@ -54,8 +53,7 @@
     "exchangeEmpty": "Tidak ada kartu di tangan yang bisa ditukar.",
     "exchangeCard": "Tukar {card}",
     "actionFailed": "Aksi belum bisa dijalankan. Coba lagi.",
-    "eventNarrative": "Peristiwa ronde ini",
-    "eventInteractive": "Peristiwa dengan pilihan",
+    "eventRound": "Ronde {round}",
     "cellEmpty": "Petak {code} kosong.",
     "cellOccupied": "Petak {code} ditempati {card}.",
     "statusLabel": "Status permainan",
@@ -63,8 +61,7 @@
     "startRound": "Mulai ronde",
     "board": "Papan kota",
     "cardList": "Daftar kartu",
-    "moneyTitle": "Anggaran",
-    "level": "Level",
+    "moneyTitle": "Koin",
     "trends": "Tren Dampak",
     "resources": "4 Meter Kota",
     "events": "Berita Kota",
