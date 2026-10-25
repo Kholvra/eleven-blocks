@@ -48,8 +48,6 @@
     "eventChoiceUnaffordable": "Dana kurang",
     "eventChoiceFeedback": "Pilihan: {choice}",
     "eventDecisionPending": "Keputusan belum dipilih.",
-    "eventDecisionReopen": "Pilih tanggapan",
-    "eventDecisionClose": "Tutup dulu, pilih nanti.",
     "eventChoiceFailed": "Pilihan belum dijalankan. Coba lagi.",
     "eventSkipped": "Dana belum cukup untuk semua pilihan. Ronde berlanjut tanpa efek event.",
     "cellEmpty": "Petak {code} kosong.",

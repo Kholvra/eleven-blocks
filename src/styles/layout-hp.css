@@ -3141,27 +3141,6 @@
   font-size: var(--font-size-small);
 }
 
-#app .game-event-reopen {
-  width: 100%;
-  min-height: var(--target-min);
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-
-#app .game-event-reopen:hover {
-  border-color: var(--color-focus);
-}
-
-#app .event-decision-close {
-  min-height: var(--target-min);
-}
 
 #app .event-decision-dialog .simple-action-choices {
   max-height: none;
