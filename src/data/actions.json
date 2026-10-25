@@ -5,7 +5,7 @@
   "aksi": [
     {
       "id": "ACT01",
-      "nama": "Dialog Warga",
+      "nama": "Obrolan Terbuka Warga",
       "biaya": 3,
       "deskripsi": "Menandai 1 kartu berikutnya sebagai disepakati warga; efek samping sosial kartu itu nonaktif.",
       "kenapa_penting": "Mendengar warga sebelum kebijakan dijalankan membantu keputusan memperhitungkan kebutuhan dan risiko sosial.",
@@ -33,7 +33,7 @@
     },
     {
       "id": "ACT02",
-      "nama": "Musrenbang Mini",
+      "nama": "Voting Prioritas Warga",
       "biaya": 5,
       "deskripsi": "Pilih 1 dari 3 janji prioritas. Kartu terkait mendapat diskon biaya 20% selama sesi: Prioritas Banjir K07, Sekolah K05, atau Pasar K16.",
       "kenapa_penting": "Menentukan prioritas bersama membantu warga dan pemerintah menyepakati kebutuhan yang didahulukan.",
@@ -53,7 +53,7 @@
     },
     {
       "id": "ACT03",
-      "nama": "Gotong Royong Sungai",
+      "nama": "Kerja Bakti Bersih Kali",
       "biaya": 2,
       "deskripsi": "Memberi tameng terhadap event hujan pada ronde ini; kerusakan dipotong 50% dan efeknya menumpuk dengan K07.",
       "kenapa_penting": "Kerja bersama warga dapat mendukung kepedulian dan pemeliharaan lingkungan sungai.",
@@ -74,7 +74,7 @@
     },
     {
       "id": "ACT04",
-      "nama": "Studi Banding Kota Lain",
+      "nama": "Contek Inovasi Kota Lain",
       "biaya": 4,
       "deskripsi": "Sekali per sesi, tukar satu kartu kebijakan dari tangan dengan kartu teratas draw pile. Kartu pengganti dicadangkan sebagai salah satu kartu tangan ronde berikutnya, menggantikan satu draw normal sehingga ukuran tangan tetap 4/3. Tidak dapat digunakan di ronde 10.",
       "kenapa_penting": "Belajar dari pengalaman kota lain dapat memberi bahan pertimbangan, sementara pilihan penerapannya tetap bergantung pada konteks setempat.",

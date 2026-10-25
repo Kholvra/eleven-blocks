@@ -15,12 +15,23 @@
   "modelByCardId": {
     "K01": "bicycle",
     "K02": "busStop",
+    "K03": "trafficGate",
     "K04": "bus",
+    "K05": "schoolZone",
+    "K06": "communityHouse",
+    "K07": "canalBridge",
     "K08": "park",
     "K09": "recycleBin",
-    "K10": "tree",
-    "K15": "market",
-    "K16": "market"
+    "K10": "waterTower",
+    "K11": "pocketPark",
+    "K12": "mangroveTree",
+    "K13": "solarRoof",
+    "K14": "rusunawa",
+    "K15": "streetFood",
+    "K16": "market",
+    "K17": "canopyTree",
+    "K18": "roadBridge",
+    "K19": "carParking"
   },
   "modelByActionId": {
     "ACT01": "market",
