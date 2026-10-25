@@ -2374,19 +2374,19 @@
   display: inline-flex;
   align-items: center;
   gap: 0.16rem;
-  padding: 0.08rem 0.3rem;
-  border-radius: 0.25rem;
+  padding: 0.1rem 0.32rem;
+  border-radius: 0.28rem;
   background: var(--card-ink);
   color: var(--card-accent);
-  font-size: 0.64rem;
+  font-size: 0.72rem;
   font-weight: 900;
   line-height: 1;
   box-shadow: 0 1px 0 var(--card-shadow-deep);
 }
 
 .game-card-dock--simple .simple-card-coin {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.75rem;
+  height: 0.75rem;
   flex: 0 0 auto;
   border-radius: 50%;
   background: var(--card-accent);
@@ -2394,13 +2394,13 @@
 }
 
 .game-card-dock--simple .simple-card-category {
-  width: 1.3rem;
-  height: 1.3rem;
+  width: 1.65rem;
+  height: 1.65rem;
   display: grid;
   place-items: center;
-  padding: 0.16rem;
+  padding: 0.14rem;
   border: 1px solid var(--card-tray-border);
-  border-radius: 0.3rem;
+  border-radius: 0.35rem;
   background: var(--card-ink);
   box-shadow: 0 1px 0 var(--card-shadow-deep);
 }
@@ -2414,8 +2414,8 @@
 .game-card-dock--simple .simple-card-art {
   position: absolute;
   z-index: 1;
-  top: 1.45rem;
-  bottom: 2.45rem;
+  top: 1.25rem;
+  bottom: 2.35rem;
   left: 0.1rem;
   right: 0.1rem;
   display: grid;
@@ -2427,6 +2427,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+  transform: scale(1.16);
   filter: drop-shadow(0 5px 3px var(--card-soft-shadow));
 }
 
@@ -2594,11 +2595,10 @@
   .game-card-dock--simple .simple-card-cost {
     font-size: 0.56rem;
   }
-
   .game-card-dock--simple .simple-card-category {
-    width: 1.12rem;
-    height: 1.12rem;
-    padding: 0.13rem;
+    width: 1.45rem;
+    height: 1.45rem;
+    padding: 0.12rem;
   }
 
   .game-card-dock--simple .simple-card-art {
@@ -2637,11 +2637,10 @@
     padding: 0.06rem 0.22rem;
     font-size: 0.52rem;
   }
-
   .game-card-dock--simple .simple-card-category {
-    width: 1rem;
-    height: 1rem;
-    padding: 0.11rem;
+    width: 1.3rem;
+    height: 1.3rem;
+    padding: 0.1rem;
   }
 
   .game-card-dock--simple .simple-card-art {
