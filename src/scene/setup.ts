@@ -51,7 +51,7 @@ export function setupScene(
   root.prepend(renderer.domElement);
   const scene = new Scene();
   const grid = createBoardGrid(grassDotColor, buildableDotColor, accentColor, soilColor, occupiedColor, focusColor, hashSeed(getState().seed));
-  const buildings = createBuildingLayer(models, grid.tiles);
+  const buildings = createBuildingLayer(models, grid.tiles, airColor, borderColor);
   scene.add(buildings.group, grid.group);
   scene.add(new AmbientLight(0xffffff, 1.8));
   const keyLight = new DirectionalLight(0xffffff, 2.2);

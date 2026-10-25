@@ -1,4 +1,4 @@
-import { Box3, Group, InstancedMesh, Matrix4, Mesh, Vector3, type Object3D } from 'three';
+import { Box3, BoxGeometry, Color, CylinderGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Vector3, type Object3D } from 'three';
 import buildableCells from '../data/board.json';
 import cardArt from '../data/card-art.json';
 import cardsData from '../data/cards.json';
@@ -33,13 +33,44 @@ for (const card of cardsData.kebijakan) {
 }
 
 const MAX_FOOTPRINT = 0.82;
+const MODEL_SCALE_OVERRIDE: Record<string, number> = {
+  park: 0.45,
+  pocketPark: 0.52,
+  canopyTree: 0.65,
+  mangroveTree: 0.70,
+  tree: 0.65,
+  dumpster: 0.50,
+  recycleBin: 0.55,
+  bicycle: 0.55,
+  trafficGate: 0.82,
+  schoolZone: 0.95,
+  roadBridge: 0.95,
+  solarRoof: 0.80,
+  waterTower: 0.75,
+  communityHouse: 0.80,
+  rusunawa: 0.85,
+  carParking: 1.0,
+  canalBridge: 0.90,
+  market: 0.85,
+  streetFood: 0.75,
+  building: 0.85,
+  bus: 0.70,
+  busStop: 0.70,
+  road: 0.95,
+};
+
 
 export interface BuildingLayer {
   readonly group: Group;
   sync(state: GameState): void;
 }
 
-export function createBuildingLayer(models: ReadonlyMap<string, Object3D>, tiles: readonly BoardTile[]): BuildingLayer {
+export function createBuildingLayer(
+  models: ReadonlyMap<string, Object3D>,
+  tiles: readonly BoardTile[],
+  waterColorStr: string = '#3e86b5',
+  baseColorStr: string = '#d4bc97',
+): BuildingLayer {
   const group = new Group();
   const parts: ModelPart[] = [];
   const buildable: Record<number, true> = {};
@@ -47,6 +78,26 @@ export function createBuildingLayer(models: ReadonlyMap<string, Object3D>, tiles
   const cells: Record<number, CellVisual> = {};
   const boundsByModel: Record<string, Box3> = {};
   const partsByModel: Record<string, ModelPart[]> = {};
+  // Baseplate diorama meshes using project color tokens
+  const waterGeometry = new BoxGeometry(0.48, 0.015, 0.82);
+  const waterMaterial = new MeshStandardMaterial({ color: new Color(waterColorStr), roughness: 0.15, metalness: 0.2 });
+  const waterMesh = new InstancedMesh(waterGeometry, waterMaterial, tiles.length);
+  waterMesh.frustumCulled = false;
+  group.add(waterMesh);
+
+  const plazaGeometry = new CylinderGeometry(0.38, 0.40, 0.012, 16);
+  const plazaMaterial = new MeshStandardMaterial({ color: new Color(baseColorStr), roughness: 0.8, metalness: 0.05 });
+  const plazaMesh = new InstancedMesh(plazaGeometry, plazaMaterial, tiles.length);
+  plazaMesh.count = 0;
+  plazaMesh.frustumCulled = false;
+  group.add(plazaMesh);
+
+  const concreteGeometry = new BoxGeometry(0.80, 0.012, 0.80);
+  const concreteMaterial = new MeshStandardMaterial({ color: new Color(baseColorStr), roughness: 0.7, metalness: 0.1 });
+  const concreteMesh = new InstancedMesh(concreteGeometry, concreteMaterial, tiles.length);
+  concreteMesh.count = 0;
+  concreteMesh.frustumCulled = false;
+  group.add(concreteMesh);
 
   for (const [modelKey, model] of models) {
     model.updateMatrixWorld(true);
@@ -86,7 +137,8 @@ export function createBuildingLayer(models: ReadonlyMap<string, Object3D>, tiles
     if (!modelKey || !bounds || !modelParts?.length) return null;
 
     const size = bounds.getSize(new Vector3());
-    const scale = Math.min(1, MAX_FOOTPRINT / size.x, MAX_FOOTPRINT / size.z);
+    const multiplier = MODEL_SCALE_OVERRIDE[modelKey] ?? 1;
+    const scale = Math.min(1, MAX_FOOTPRINT / size.x, MAX_FOOTPRINT / size.z) * multiplier;
     center.set((bounds.min.x + bounds.max.x) / 2, bounds.min.y, (bounds.min.z + bounds.max.z) / 2);
     scaleMatrix.makeScale(scale, scale, scale);
     offsetMatrix.makeTranslation(-center.x, -center.y, -center.z);
@@ -137,6 +189,31 @@ export function createBuildingLayer(models: ReadonlyMap<string, Object3D>, tiles
         part.mesh.count = instanceIndex;
         part.mesh.instanceMatrix.needsUpdate = true;
       }
+      let waterCount = 0;
+      let plazaCount = 0;
+      let concreteCount = 0;
+      const baseplateMatrix = new Matrix4();
+
+      for (const tile of tiles) {
+        const visual = cells[tile.userData.cellIndex];
+        if (!visual) continue;
+        if (visual.modelKey === 'canalBridge') {
+          baseplateMatrix.makeTranslation(tile.position.x, tileTop(tile) + 0.01, tile.position.z);
+          waterMesh.setMatrixAt(waterCount++, baseplateMatrix);
+        } else if (visual.modelKey === 'pocketPark' || visual.modelKey === 'park') {
+          baseplateMatrix.makeTranslation(tile.position.x, tileTop(tile) + 0.006, tile.position.z);
+          plazaMesh.setMatrixAt(plazaCount++, baseplateMatrix);
+        } else if (visual.modelKey === 'recycleBin') {
+          baseplateMatrix.makeTranslation(tile.position.x, tileTop(tile) + 0.006, tile.position.z);
+          concreteMesh.setMatrixAt(concreteCount++, baseplateMatrix);
+        }
+      }
+      waterMesh.count = waterCount;
+      waterMesh.instanceMatrix.needsUpdate = true;
+      plazaMesh.count = plazaCount;
+      plazaMesh.instanceMatrix.needsUpdate = true;
+      concreteMesh.count = concreteCount;
+      concreteMesh.instanceMatrix.needsUpdate = true;
     },
   };
 }

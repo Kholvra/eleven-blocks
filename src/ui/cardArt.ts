@@ -9,6 +9,19 @@ import parkThumb from '../assets/3d/thumbs/park.png';
 import recycleBinThumb from '../assets/3d/thumbs/recycleBin.png';
 import roadThumb from '../assets/3d/thumbs/road.png';
 import treeThumb from '../assets/3d/thumbs/tree.png';
+import trafficGateThumb from '../assets/3d/thumbs/trafficGate.png';
+import schoolZoneThumb from '../assets/3d/thumbs/schoolZone.png';
+import communityHouseThumb from '../assets/3d/thumbs/communityHouse.png';
+import canalBridgeThumb from '../assets/3d/thumbs/canalBridge.png';
+import waterTowerThumb from '../assets/3d/thumbs/waterTower.png';
+import pocketParkThumb from '../assets/3d/thumbs/pocketPark.png';
+import mangroveTreeThumb from '../assets/3d/thumbs/mangroveTree.png';
+import solarRoofThumb from '../assets/3d/thumbs/solarRoof.png';
+import rusunawaThumb from '../assets/3d/thumbs/rusunawa.png';
+import streetFoodThumb from '../assets/3d/thumbs/streetFood.png';
+import canopyTreeThumb from '../assets/3d/thumbs/canopyTree.png';
+import roadBridgeThumb from '../assets/3d/thumbs/roadBridge.png';
+import carParkingThumb from '../assets/3d/thumbs/carParking.png';
 import airIcon from '../assets/icons/cat-air.svg';
 import energyIcon from '../assets/icons/cat-energi.svg';
 import housingIcon from '../assets/icons/cat-permukiman.svg';
@@ -33,6 +46,19 @@ const modelImages: Record<string, string> = {
   recycleBin: recycleBinThumb,
   road: roadThumb,
   tree: treeThumb,
+  trafficGate: trafficGateThumb,
+  schoolZone: schoolZoneThumb,
+  communityHouse: communityHouseThumb,
+  canalBridge: canalBridgeThumb,
+  waterTower: waterTowerThumb,
+  pocketPark: pocketParkThumb,
+  mangroveTree: mangroveTreeThumb,
+  solarRoof: solarRoofThumb,
+  rusunawa: rusunawaThumb,
+  streetFood: streetFoodThumb,
+  canopyTree: canopyTreeThumb,
+  roadBridge: roadBridgeThumb,
+  carParking: carParkingThumb,
 };
 
 const categoryIcons: Record<string, string> = {
