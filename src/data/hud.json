@@ -34,7 +34,7 @@
     "cancel": "Batalkan",
     "deselectCard": "Batalkan",
     "cardAriaSelect": "Pilih {name}, kategori {category}, biaya {cost} poin.",
-    "cardAriaPlace": "Tempatkan {name}. Klik lagi untuk menaruhnya di petak kosong pertama.",
+    "cardAriaPlace": "Tempatkan {name} di petak yang disorot. Pilih petak dengan tombol panah, lalu tekan Enter atau Spasi. Dengan tetikus, klik petak yang diinginkan.",
     "cardAriaUnavailable": "{name} tidak tersedia. {reason}",
     "cardAriaAction": "Gunakan {name}. Biaya {cost} poin.",
     "exchangeTitle": "Tukar kartu untuk Studi Banding",

@@ -29,6 +29,7 @@ export interface ScreenRouterOptions {
   onContinue(): Phase | null;
   onAudioChange(enabled: boolean): void;
   onPlacementModeChange(active: boolean): void;
+  onFocusBoard(): void;
   getGameState(): GameState;
   hitungSkorAkhir(state: GameState): SkorAkhir;
 }
@@ -260,6 +261,7 @@ export function createScreenRouter(
         getState: options.getState,
         dispatch: options.dispatch,
         onPlacementModeChange: options.onPlacementModeChange,
+        onFocusBoard: options.onFocusBoard,
         onStateChange() {
           machine.restore(options.getState().fase);
           render();

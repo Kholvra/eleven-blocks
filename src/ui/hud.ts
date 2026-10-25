@@ -40,6 +40,7 @@ type HudOptions = {
   dispatch(action: GameAction): boolean;
   onStateChange(): void;
   onPlacementModeChange(active: boolean): void;
+  onFocusBoard(): void;
 };
 
 type MeterNode = { root: HTMLElement; value: HTMLOutputElement; bar: HTMLElement; delta: HTMLElement };
@@ -535,9 +536,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
         options.onPlacementModeChange(true);
         deselectButton.hidden = false;
         audio.playClick();
-      }, audio, () => {
-        clearSelection();
-      }, dismissPreview);
+      }, audio, dismissPreview);
       renderActions(actionList, state, options, (candidate, anchor) => {
         cancelPreviewHide();
         renderPreview(preview, candidate, state, anchor);
@@ -713,7 +712,6 @@ function renderCards(
   selectedCardIdx: number | null,
   onSelect: (index: number) => void,
   audio: AudioController,
-  onPlace: () => void,
   dismissPreview: () => void,
 ): void {
   list.replaceChildren();
@@ -801,18 +799,8 @@ function renderCards(
       const cell = firstOpenBuildableCell(options.getState());
       if (cell !== null) selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell }, button);
     };
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
       if (!availability.available) return;
-      const cell = firstOpenBuildableCell(options.getState());
-      if (item.classList.contains('is-selected') && cell !== null) {
-        audio.playClick();
-        if (options.dispatch({ type: 'MAIN_KARTU', kartuIdx: index, selIdx: cell })) {
-          audio.playConfirm();
-          onPlace();
-          options.onStateChange();
-        }
-        return;
-      }
       onSelect(index);
       preview();
       for (const other of list.querySelectorAll<HTMLElement>('.simple-card')) {
@@ -828,6 +816,7 @@ function renderCards(
         const otherCheck = other.querySelector<HTMLElement>('.simple-card-check');
         if (otherCheck) otherCheck.hidden = !active;
       }
+      if (event.detail === 0) options.onFocusBoard();
     });
     button.addEventListener('mouseenter', preview);
     button.addEventListener('focus', preview);
