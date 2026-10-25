@@ -5,6 +5,15 @@ const BOARD_HEIGHT = 8;
 
 export const BUILDABLE_CELLS = Object.freeze(cells);
 
+export function areCellsAdjacent(first: number, second: number): boolean {
+  if (!Number.isInteger(first) || !Number.isInteger(second) ||
+      first < 0 || second < 0 || first >= BOARD_WIDTH * BOARD_HEIGHT || second >= BOARD_WIDTH * BOARD_HEIGHT) return false;
+
+  const difference = Math.abs(first - second);
+  return difference === BOARD_WIDTH ||
+    (difference === 1 && Math.floor(first / BOARD_WIDTH) === Math.floor(second / BOARD_WIDTH));
+}
+
 export function isBuildableCell(index: number): boolean {
   return Number.isInteger(index) && BUILDABLE_CELLS.includes(index);
 }

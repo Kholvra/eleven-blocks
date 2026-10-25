@@ -7,7 +7,7 @@ import { takeDueEffects } from './pending';
 import type { Efek, GameState, KunciMeter } from './types';
 
 export type PreviewCandidate =
-  | { type: 'policy'; kartuIdx: number; selIdx?: number }
+  | { type: 'policy'; kartuIdx: number; selIdx?: number | null }
   | { type: 'action'; aksiId: string; kartuIdx?: number };
 
 export interface PreviewHorizon {
@@ -55,8 +55,10 @@ export function hitungPreview(state: GameState, candidate: PreviewCandidate): Pr
       cost = biayaKartu(candidate.kartuIdx) ?? Number.NaN;
       if (!Number.isInteger(candidate.kartuIdx) || !source || !initial.tangan.includes(candidate.kartuIdx)) return invalid('Kartu tidak ada di tangan.', Number.isFinite(cost) ? cost : null);
       if (initial.milik.includes(candidate.kartuIdx) || initial.papan.ubin.includes(candidate.kartuIdx)) return invalid('Kartu sudah ditempatkan.', cost);
-      const cell = candidate.selIdx ?? initial.papan.ubin.findIndex((value, index) => value === null && isBuildableCell(index));
-      if (!Number.isInteger(cell) || cell < 0 || cell >= initial.papan.ubin.length || cell >= initial.papan.lebar * initial.papan.tinggi || !isBuildableCell(cell) || initial.papan.ubin[cell] !== null) return invalid('Pilih sel kosong yang dapat dibangun.', cost);
+      const cell = candidate.selIdx === undefined
+        ? initial.papan.ubin.findIndex((value, index) => value === null && isBuildableCell(index))
+        : candidate.selIdx;
+      if (!Number.isInteger(cell) || cell === null || cell < 0 || cell >= initial.papan.ubin.length || cell >= initial.papan.lebar * initial.papan.tinggi || !isBuildableCell(cell) || initial.papan.ubin[cell] !== null) return invalid('Pilih sel kosong yang dapat dibangun.', cost);
       if (initial.fase !== 'ronde' || initial.tahapRonde !== 'tangan' || initial.kartuDimainkanRondeIni !== null) return invalid('Kartu tidak tersedia pada tahap ini.', cost);
       if (initial.anggaran < cost) playable = false;
       else {
@@ -67,7 +69,7 @@ export function hitungPreview(state: GameState, candidate: PreviewCandidate): Pr
       initial.papan.ubin[cell] = candidate.kartuIdx;
       initial.milik.push(candidate.kartuIdx);
       for (const item of (cards.kebijakan[candidate.kartuIdx]?.efek.tertunda ?? []) as Array<{ syarat?: string }>) {
-        if (item.syarat !== undefined && evaluateCondition(source, item.syarat, ownedCodesFor(initial)) === undefined) notes.push(`Syarat “${item.syarat}”: cakrawala terkait belum dapat dipastikan oleh preview.`);
+        if (item.syarat !== undefined) notes.push(conditionNote(source, item.syarat, initial));
       }
     } else {
       source = candidate.aksiId;
@@ -81,8 +83,11 @@ export function hitungPreview(state: GameState, candidate: PreviewCandidate): Pr
       initial.aksiTerpakai.push(source);
       initial.kartuDimainkanRondeIni = source;
       for (const item of action.efek.tertunda as Array<{ syarat?: string }>) {
-        if (item.syarat !== undefined && evaluateCondition(source, item.syarat, ownedCodesFor(initial)) === undefined) notes.push(`Syarat “${item.syarat}”: cakrawala terkait belum dapat dipastikan oleh preview.`);
+        if (item.syarat !== undefined) notes.push(conditionNote(source, item.syarat, initial));
       }
+    }
+    for (const effect of initial.antrian) {
+      if (effect.syarat !== undefined && effect.ronde <= 10) notes.push(conditionNote(effect.sumber, effect.syarat, initial));
     }
     if (!playable) notes.push('Dana kurang; angka dihitung sebagai perkiraan, aksi tidak dapat dimainkan.');
 
@@ -92,9 +97,9 @@ export function hitungPreview(state: GameState, candidate: PreviewCandidate): Pr
     const baselineMeter = { ...initial.meter };
     const targetRounds = [state.ronde, Math.min(state.ronde + 5, 10), 10];
     const deltas: Efek[] = [firstNote?.delta ?? {}];
-    const ownedCodes = ownedCodesFor(initial);
+
     const skippedEventRounds = new Set<number>();
-    const completeness = [!hasUnsupportedDue(initial.antrian, state.ronde, ownedCodes) && !hasUnsupportedCandidate(source, state.ronde, ownedCodes)];
+    const completeness = [!hasUnsupportedDue(initial.antrian, state.ronde, initial) && !hasUnsupportedCandidate(source, state.ronde, initial)];
     for (const target of targetRounds.slice(1)) {
       while (simulated.ronde < target) {
         const nextRound = createGameEngine(simulated, undefined, () => simulated.waktuSimpan);
@@ -116,8 +121,8 @@ export function hitungPreview(state: GameState, candidate: PreviewCandidate): Pr
       deltas.push(delta);
       const skippedInteractiveChoice = [...skippedEventRounds].some((round) => round <= target);
       completeness.push(!skippedInteractiveChoice &&
-        !hasUnsupportedDue(initial.antrian, target, ownedCodes) &&
-        !hasUnsupportedCandidate(source, target, ownedCodes));
+        !hasUnsupportedDue(initial.antrian, target, initial) &&
+        !hasUnsupportedCandidate(source, target, initial));
     }
     const horizons = horizonIds.map((id, index) => ({ id, label: horizonLabels[id], ronde: targetRounds[index] ?? 10, delta: deltas[index] ?? {}, lengkap: completeness[index] ?? true }));
     const tanpaPerubahan = horizons.every(({ delta }) => meterKeys.every((key) => delta[key] === undefined || delta[key] === 0));
@@ -135,7 +140,6 @@ function effectsFor(source: string): { langsung?: Efek; tertunda?: Array<{ setel
 function buildSchedule(source: string, round: number, state: GameState): PreviewJadwal[] {
   const effects = effectsFor(source);
   if (!effects) return [];
-  const owned = ownedCodesFor(state);
   const rows = new Map<number, { delta: Efek; lengkap: boolean }>();
   const add = (dueRound: number, delta: Efek, complete: boolean) => {
     const row = rows.get(dueRound) ?? { delta: {}, lengkap: true };
@@ -148,8 +152,10 @@ function buildSchedule(source: string, round: number, state: GameState): Preview
   };
   add(round, effects.langsung ?? {}, true);
   for (const item of effects.tertunda ?? []) {
-    const complete = item.syarat === undefined || evaluateCondition(source, item.syarat, owned) !== undefined;
-    add(Math.min(10, round + item.setelahRonde), item.efek, complete);
+    const outcome = item.syarat === undefined ? true : evaluateCondition(source, item.syarat, state);
+    const dueRound = Math.min(10, round + item.setelahRonde);
+    if (outcome === true) add(dueRound, item.efek, true);
+    else if (outcome === undefined) add(dueRound, {}, false);
   }
   return [...rows.entries()]
     .sort(([a], [b]) => a - b)
@@ -157,17 +163,27 @@ function buildSchedule(source: string, round: number, state: GameState): Preview
     .map(([ronde, row]) => ({ ronde, delta: row.delta, lengkap: row.lengkap }));
 }
 
-function ownedCodesFor(state: GameState): Set<string> {
-  return new Set(state.milik.map((index) => cards.kebijakan[index]?.id).filter((id): id is string => id !== undefined));
+function conditionNote(source: string, condition: string, state: GameState): string {
+  const outcome = evaluateCondition(source, condition, state);
+  const status = outcome === true ? 'berlaku' : outcome === false ? 'tidak berlaku' : 'tidak diketahui';
+  const reason = source === 'K04' && condition === 'K01 sudah ada'
+    ? outcome === true ? 'K01 dan K04 berdampingan.' : 'K01 dan K04 belum berdampingan.'
+    : source === 'K08' && condition === 'K10 ada'
+      ? outcome === true ? 'K08 dan K10 berdampingan.' : 'K08 dan K10 belum berdampingan.'
+      : outcome === undefined
+        ? 'Aturan ini belum didukung oleh pratinjau.'
+        : outcome ? 'Syarat terpenuhi.' : 'Syarat belum terpenuhi.';
+  return `Syarat “${condition}”: ${status}. ${reason}`;
 }
 
-function hasUnsupportedDue(queue: GameState['antrian'], round: number, owned: Set<string>): boolean {
+function hasUnsupportedDue(queue: GameState['antrian'], round: number, state: GameState): boolean {
   const due = takeDueEffects(queue, round).due;
-  return due.some((effect) => evaluateCondition(effect.sumber, effect.syarat, owned) === undefined);
+  return due.some((effect) => evaluateCondition(effect.sumber, effect.syarat, state) === undefined);
 }
 
-function hasUnsupportedCandidate(source: string, targetRound: number, owned: Set<string>): boolean {
+function hasUnsupportedCandidate(source: string, targetRound: number, state: GameState): boolean {
   const effects = effectsFor(source);
   return (effects?.tertunda ?? []).some((item) => item.syarat !== undefined &&
-    evaluateCondition(source, item.syarat, owned) === undefined && Math.min(10, item.setelahRonde) <= targetRound);
+    evaluateCondition(source, item.syarat, state) === undefined &&
+    Math.min(10, state.ronde + item.setelahRonde) <= targetRound);
 }

@@ -40,6 +40,7 @@ type HudOptions = {
   dispatch(action: GameAction): boolean;
   onStateChange(): void;
   onPlacementModeChange(active: boolean): void;
+  onFocusBoard(): void;
 };
 
 type MeterNode = { root: HTMLElement; value: HTMLOutputElement; bar: HTMLElement; delta: HTMLElement };
@@ -314,7 +315,6 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   actionDialogCancel.textContent = hudCopy.copy.cancel;
   actionDialogCancel.addEventListener('click', () => actionDialog.close());
   actionDialog.append(actionDialogTitle, actionDialogBody, actionDialogChoices, actionDialogCancel);
-  let dismissedEventId: string | null = null;
   const eventDialog = document.createElement('dialog');
   eventDialog.id = `${settingsDialog.id}-decision`;
   eventDialog.className = 'simple-action-dialog event-decision-dialog ui-panel';
@@ -328,12 +328,11 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   eventDialogChoices.className = 'simple-action-choices';
   const eventDialogError = document.createElement('p');
   eventDialogError.setAttribute('role', 'alert');
-  const eventDialogCancel = document.createElement('button');
-  eventDialogCancel.type = 'button';
-  eventDialogCancel.className = 'simple-cancel event-decision-close';
-  eventDialogCancel.textContent = hudCopy.copy.eventDecisionClose;
-  eventDialogCancel.addEventListener('click', () => eventDialog.close());
-  eventDialog.append(eventDialogTitle, eventDialogNarrative, eventDialogChoices, eventDialogError, eventDialogCancel);
+  eventDialog.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') event.preventDefault();
+  });
+  eventDialog.addEventListener('cancel', (event) => event.preventDefault());
+  eventDialog.append(eventDialogTitle, eventDialogNarrative, eventDialogChoices, eventDialogError);
 
   advance.addEventListener('click', () => {
     const state = options.getState();
@@ -415,10 +414,8 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
   };
 
   eventDialog.addEventListener('close', () => {
-    const event = getPendingEvent(options.getState());
-    if (event) {
-      dismissedEventId = event.id;
-      newsBody.querySelector<HTMLButtonElement>('.game-event-reopen')?.focus();
+    if (getPendingEvent(options.getState())) {
+      eventDialog.showModal();
       return;
     }
     document.querySelector<HTMLElement>('.screen:not([hidden]) > h1')?.focus();
@@ -495,19 +492,13 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
       soundButton.textContent = `${state.setelan.audio ? '🔊' : '🔇'} ${hudCopy.copy.sound}`;
       soundButton.setAttribute('aria-pressed', String(state.setelan.audio));
       const resetNewsScroll = renderedNewsRound !== state.ronde;
-      renderNews(newsBody, state, resetNewsScroll, () => {
-        const event = getPendingEvent(options.getState());
-        if (!event) return;
-        dismissedEventId = null;
-        openEventDecision(event);
-      });
+      renderNews(newsBody, state, resetNewsScroll);
       renderedNewsRound = state.ronde;
       const pendingEvent = getPendingEvent(state);
       if (pendingEvent) {
-        if (!eventDialog.open && dismissedEventId !== pendingEvent.id) openEventDecision(pendingEvent);
-      } else {
-        dismissedEventId = null;
-        if (eventDialog.open) eventDialog.close();
+        if (!eventDialog.open) openEventDecision(pendingEvent);
+      } else if (eventDialog.open) {
+        eventDialog.close();
       }
       const delta = latestDelta(state);
       for (const key of meterOrder) {
@@ -535,9 +526,7 @@ export function createHud(container: HTMLElement, options: HudOptions): HudRende
         options.onPlacementModeChange(true);
         deselectButton.hidden = false;
         audio.playClick();
-      }, audio, () => {
-        clearSelection();
-      }, dismissPreview);
+      }, audio, dismissPreview);
       renderActions(actionList, state, options, (candidate, anchor) => {
         cancelPreviewHide();
         renderPreview(preview, candidate, state, anchor);
@@ -616,7 +605,6 @@ function renderNews(
   container: HTMLElement,
   state: GameState,
   resetScroll: boolean,
-  onReopen: () => void,
 ): void {
   const previousScrollTop = container.scrollTop;
   container.replaceChildren();
@@ -652,13 +640,7 @@ function renderNews(
       const decisionPending = document.createElement('p');
       decisionPending.className = 'game-event-feedback';
       decisionPending.textContent = hudCopy.copy.eventDecisionPending;
-      const reopen = document.createElement('button');
-      reopen.type = 'button';
-      reopen.className = 'game-event-reopen';
-      reopen.textContent = hudCopy.copy.eventDecisionReopen;
-      reopen.setAttribute('aria-haspopup', 'dialog');
-      reopen.addEventListener('click', onReopen);
-      article.append(decisionPending, reopen);
+      article.append(decisionPending);
     } else if (eventNote?.pilihanEvent === 'lewati_tanpa_efek') {
       const feedback = document.createElement('p');
       feedback.className = 'game-event-feedback';
@@ -713,7 +695,6 @@ function renderCards(
   selectedCardIdx: number | null,
   onSelect: (index: number) => void,
   audio: AudioController,
-  onPlace: () => void,
   dismissPreview: () => void,
 ): void {
   list.replaceChildren();
@@ -801,18 +782,8 @@ function renderCards(
       const cell = firstOpenBuildableCell(options.getState());
       if (cell !== null) selectCandidate({ type: 'policy', kartuIdx: index, selIdx: cell }, button);
     };
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
       if (!availability.available) return;
-      const cell = firstOpenBuildableCell(options.getState());
-      if (item.classList.contains('is-selected') && cell !== null) {
-        audio.playClick();
-        if (options.dispatch({ type: 'MAIN_KARTU', kartuIdx: index, selIdx: cell })) {
-          audio.playConfirm();
-          onPlace();
-          options.onStateChange();
-        }
-        return;
-      }
       onSelect(index);
       preview();
       for (const other of list.querySelectorAll<HTMLElement>('.simple-card')) {
@@ -828,6 +799,7 @@ function renderCards(
         const otherCheck = other.querySelector<HTMLElement>('.simple-card-check');
         if (otherCheck) otherCheck.hidden = !active;
       }
+      if (event.detail === 0) options.onFocusBoard();
     });
     button.addEventListener('mouseenter', preview);
     button.addEventListener('focus', preview);

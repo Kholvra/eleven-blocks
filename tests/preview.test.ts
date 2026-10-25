@@ -59,7 +59,19 @@ describe('hitungPreview', () => {
     expect(result.horizons[0]?.lengkap).toBe(true);
     expect(result.horizons[1]?.lengkap).toBe(true);
     expect(result.horizons[1]?.delta).toEqual({ udara: 4, akses: 1, warga: -1 });
-    expect(result.catatan.join(' ')).not.toMatch(/K04 tidak ada/);
+    expect(result.catatan.join(' ')).toMatch(/K04 tidak ada.*berlaku/);
+  });
+
+  it('uses the candidate cell to decide a pair bonus and explains both outcomes', () => {
+    const state = playable({ tangan: [3], milik: [0] });
+    state.papan.ubin[17] = 0;
+    const adjacent = hitungPreview(state, { type: 'policy', kartuIdx: 3, selIdx: 18 });
+    const distant = hitungPreview(state, { type: 'policy', kartuIdx: 3, selIdx: 20 });
+
+    expect(adjacent.jadwal.find(({ ronde }) => ronde === state.ronde + 3)?.delta).toEqual({ akses: 4, udara: 1 });
+    expect(adjacent.catatan.join(' ')).toMatch(/K01 sudah ada.*berlaku/);
+    expect(distant.jadwal.find(({ ronde }) => ronde === state.ronde + 3)?.delta).toEqual({ akses: 3, udara: 1 });
+    expect(distant.catatan.join(' ')).toMatch(/K01 sudah ada.*tidak berlaku/);
   });
   it('marks future horizons incomplete when interactive event choices are outside the preview', () => {
     const result = hitungPreview(playable(), { type: 'policy', kartuIdx: 0, selIdx: 17 });
@@ -74,6 +86,7 @@ describe('hitungPreview', () => {
     const result = hitungPreview(state, { type: 'action', aksiId: 'ACT04', kartuIdx: 0 });
 
     expect(result.horizons.map(({ lengkap }) => lengkap)).toEqual([true, false, false]);
+    expect(result.catatan.join(' ')).toMatch(/unsupported condition.*tidak diketahui/);
   });
 
   it('reports invalid membership and placement without horizon numbers', () => {
@@ -81,6 +94,7 @@ describe('hitungPreview', () => {
     const state = playable({ tangan: [0], papan: { ...board, ubin: board.ubin.map((cell, index) => index === 17 ? 1 : cell) } });
     const notInHand = hitungPreview(state, { type: 'policy', kartuIdx: 1, selIdx: 1 });
     const blockedCell = hitungPreview(state, { type: 'policy', kartuIdx: 0, selIdx: 17 });
+    const noTarget = hitungPreview(state, { type: 'policy', kartuIdx: 0, selIdx: null });
 
     expect(notInHand.status).toBe('invalid');
     expect(notInHand.horizons).toEqual([]);
@@ -88,6 +102,8 @@ describe('hitungPreview', () => {
     expect(blockedCell.status).toBe('invalid');
     expect(blockedCell.horizons).toEqual([]);
     expect(blockedCell.jadwal).toEqual([]);
+    expect(noTarget.status).toBe('invalid');
+    expect(noTarget.reason).toContain('sel kosong');
   });
   it('rejects unknown policy indices and unavailable actions without numeric horizons', () => {
     const state = playable({ tangan: [999] });

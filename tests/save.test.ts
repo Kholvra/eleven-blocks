@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { baruGame } from '../src/game/state';
+import { createGameEngine } from '../src/game/engine';
 import { createSaveRepository, type SaveStorage } from '../src/save/save';
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -23,6 +24,43 @@ describe('save repository', () => {
 
     expect(repository.save(state)).toBe(true);
     expect(repository.load()).toEqual({ status: 'valid', state });
+  });
+
+  it('loads a v1 pending adjacent bonus, resolves it once, and keeps it consumed after reload', () => {
+    const state = baruGame('save-v1-adjacent-bonus');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.ronde = 5;
+    state.milik = [0, 3];
+    state.papan.ubin[17] = 0;
+    state.papan.ubin[18] = 3;
+    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
+    state.antrian = [{
+      ronde: 5,
+      sumber: 'K04',
+      efek: { akses: 1 },
+      catatan: 'Bonus akses bike-to-halte.',
+      syarat: 'K01 sudah ada',
+    }];
+    const { storage } = memoryStorage();
+    const repository = createSaveRepository(storage);
+
+    expect(repository.save(state)).toBe(true);
+    const loaded = repository.load();
+    expect(loaded.status).toBe('valid');
+    if (loaded.status !== 'valid') return;
+    const engine = createGameEngine(loaded.state);
+
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
+    expect(engine.getState().meter.akses).toBe(51);
+    expect(engine.getState().antrian).toEqual([]);
+    expect(repository.save(engine.getState())).toBe(true);
+
+    const reloaded = repository.load();
+    expect(reloaded.status).toBe('valid');
+    if (reloaded.status !== 'valid') return;
+    expect(reloaded.state.meter.akses).toBe(51);
+    expect(reloaded.state.antrian).toEqual([]);
   });
   it('loads a save written by another tab after the repository was created', () => {
     const { storage, values } = memoryStorage();

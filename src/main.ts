@@ -91,6 +91,9 @@ if (!supportsWebGL2()) {
     onPlacementModeChange(active) {
       board.setPlacementMode(active);
     },
+    onFocusBoard() {
+      board.focusBoard();
+    },
     continueLabel: completed
       ? 'Lihat hasil tersimpan'
       : `Lanjutkan permainan (ronde ${loadResult.status === 'valid' ? loadResult.state.ronde : 1})`,

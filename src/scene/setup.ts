@@ -12,7 +12,7 @@ export function setupScene(
   getState: () => GameState,
   onPlace?: (selIdx: number) => void,
   models: ReadonlyMap<string, Object3D> = new Map(),
-): { setPlacementMode(active: boolean): void } {
+): { setPlacementMode(active: boolean): void; focusBoard(): void } {
   const renderer = new WebGLRenderer({ antialias: true, alpha: false });
   renderer.domElement.className = 'scene-canvas';
   const initialPixelRatio = Math.min(window.devicePixelRatio, 2);
@@ -74,8 +74,15 @@ export function setupScene(
   let lastPointerEvent: PointerEvent | null = null;
   let focusedCell: number | null = null;
   let keyboardFocusActive = false;
+  function setFocusedCell(cellIndex: number | null): void {
+    const occupancy = getState().papan.ubin;
+    const nextCell = cellIndex !== null && isPlacementCellAvailable(cellIndex, occupancy) ? cellIndex : null;
+    if (focusedCell === nextCell) return;
+    focusedCell = nextCell;
+  }
   function render(): void {
     const state = getState();
+    if (focusedCell !== null && !isPlacementCellAvailable(focusedCell, state.papan.ubin)) setFocusedCell(null);
     buildings.sync(state);
     grid.updateOccupancy(state.papan.ubin);
     grid.updateFocus(focusedCell, state.papan.ubin);
@@ -96,7 +103,7 @@ export function setupScene(
   function updateFocus(event: PointerEvent): void {
     lastPointerEvent = event;
     const hitCell = cellAtPointer(event, renderer.domElement, camera, grid.tiles);
-    focusedCell = hitCell !== null && isPlacementCellAvailable(hitCell, getState().papan.ubin) ? hitCell : null;
+    setFocusedCell(hitCell);
     if (hitCell !== null) logicalCellIndex = hitCell;
     grid.updateFocus(hitCell, getState().papan.ubin);
     render();
@@ -105,16 +112,27 @@ export function setupScene(
     grid.setPlacementMode(active, getState().papan.ubin);
     render();
   }
+  function focusBoard(): void {
+    const occupancy = getState().papan.ubin;
+    if (!isPlacementCellAvailable(logicalCellIndex, occupancy)) {
+      logicalCellIndex = buildableCells.find((cell) => isPlacementCellAvailable(cell, occupancy)) ?? logicalCellIndex;
+    }
+    renderer.domElement.focus();
+  }
 
   renderer.domElement.addEventListener('focus', () => {
     keyboardFocusActive = true;
-    focusedCell = logicalCellIndex;
-    grid.updateFocus(focusedCell, getState().papan.ubin);
+    const occupancy = getState().papan.ubin;
+    if (!isPlacementCellAvailable(logicalCellIndex, occupancy)) {
+      logicalCellIndex = buildableCells.find((cell) => isPlacementCellAvailable(cell, occupancy)) ?? logicalCellIndex;
+    }
+    setFocusedCell(logicalCellIndex);
+    grid.updateFocus(focusedCell, occupancy);
     render();
   });
   renderer.domElement.addEventListener('blur', () => {
     keyboardFocusActive = false;
-    focusedCell = null;
+    setFocusedCell(null);
     grid.updateFocus(null, getState().papan.ubin);
     render();
   });
@@ -122,9 +140,9 @@ export function setupScene(
   renderer.domElement.addEventListener('pointerleave', () => {
     lastPointerEvent = null;
     const occupancy = getState().papan.ubin;
-    focusedCell = keyboardFocusActive && isPlacementCellAvailable(logicalCellIndex, occupancy)
+    setFocusedCell(keyboardFocusActive && isPlacementCellAvailable(logicalCellIndex, occupancy)
       ? logicalCellIndex
-      : null;
+      : null);
     grid.updateFocus(focusedCell, occupancy);
     render();
   });
@@ -150,8 +168,8 @@ export function setupScene(
         break;
       case ' ':
       case 'Enter': {
-        if (!onPlace || !isPlacementCellAvailable(logicalCellIndex, getState().papan.ubin)) return;
-        onPlace(logicalCellIndex);
+        if (focusedCell === null || !onPlace || !isPlacementCellAvailable(focusedCell, getState().papan.ubin)) return;
+        onPlace(focusedCell);
         event.preventDefault();
         render();
         return;
@@ -159,7 +177,7 @@ export function setupScene(
       case 'Escape':
         keyboardFocusActive = false;
         lastPointerEvent = null;
-        focusedCell = null;
+        setFocusedCell(null);
         grid.updateFocus(null, getState().papan.ubin);
         event.preventDefault();
         render();
@@ -170,7 +188,7 @@ export function setupScene(
 
     keyboardFocusActive = true;
     logicalCellIndex = nextRow * 8 + nextColumn;
-    focusedCell = logicalCellIndex;
+    setFocusedCell(logicalCellIndex);
     grid.updateFocus(focusedCell, getState().papan.ubin);
     event.preventDefault();
     render();
@@ -213,5 +231,5 @@ export function setupScene(
     requestAnimationFrame(animate);
   };
   requestAnimationFrame(animate);
-  return { setPlacementMode };
+  return { setPlacementMode, focusBoard };
 }

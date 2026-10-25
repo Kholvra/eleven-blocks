@@ -540,6 +540,7 @@ describe('game engine', () => {
     state.tahapRonde = 'tangan';
     state.tangan = [7];
     state.milik = [9];
+    state.papan.ubin[18] = 9;
     const engine = createGameEngine(state);
     expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: 7 })).toBe(true);
     expect(engine.getState().fase).toBe('ringkasan');
@@ -633,12 +634,8 @@ describe('game engine', () => {
   it.each([
     ['K03 without K04', 'K03', 'K04 tidak ada', [], { akses: -2 }, 48, 50],
     ['K03 with K04', 'K03', 'K04 tidak ada', [3], { akses: -2 }, 50, 50],
-    ['K04 with K01', 'K04', 'K01 sudah ada', [0], { akses: 1 }, 51, 50],
-    ['K04 without K01', 'K04', 'K01 sudah ada', [], { akses: 1 }, 50, 50],
     ['K06 without K07 or K08', 'K06', 'K07 dan K08 tidak ada', [], { hijau: -1 }, 50, 49],
     ['K06 with K08', 'K06', 'K07 dan K08 tidak ada', [7], { hijau: -1 }, 50, 50],
-    ['K08 with K10', 'K08', 'K10 ada', [9], { hijau: 1 }, 50, 51],
-    ['K08 without K10', 'K08', 'K10 ada', [], { hijau: 1 }, 50, 50],
     ['K14 with K07', 'K14', 'K07 atau K08 ada', [6], { hijau: 1 }, 50, 51],
     ['K14 without K07 or K08', 'K14', 'K07 dan K08 tidak ada', [], { hijau: -1 }, 50, 49],
   ] as const)('evaluates delayed synergy at resolution time: %s', (_scenario, source, syarat, owned, effect, expectedAccess, expectedGreen) => {
@@ -655,6 +652,95 @@ describe('game engine', () => {
     expect(engine.getState().meter.akses).toBe(expectedAccess);
     expect(engine.getState().meter.hijau).toBe(expectedGreen);
     expect(engine.getState().antrian).toEqual([]);
+  });
+
+  it.each([
+    ['K04 with edge-adjacent K01', 'K04', 'K01 sudah ada', 3, 0, 18, 17, { akses: 1 }, 'akses', 51],
+    ['K04 with diagonal K01', 'K04', 'K01 sudah ada', 3, 0, 26, 17, { akses: 1 }, 'akses', 50],
+    ['K04 with distant K01', 'K04', 'K01 sudah ada', 3, 0, 25, 22, { akses: 1 }, 'akses', 50],
+    ['K08 with edge-adjacent K10', 'K08', 'K10 ada', 7, 9, 18, 17, { hijau: 1 }, 'hijau', 51],
+    ['K08 with distant K10', 'K08', 'K10 ada', 7, 9, 20, 17, { hijau: 1 }, 'hijau', 50],
+  ] as const)('requires adjacency for delayed pair bonus: %s', (_case, source, condition, sourceIdx, partnerIdx, sourceCell, partnerCell, effect, meter, expected) => {
+    const state = baruGame(`adjacency-${_case}`);
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.ronde = 5;
+    state.milik = [sourceIdx, partnerIdx];
+    state.papan.ubin[sourceCell] = sourceIdx;
+    state.papan.ubin[partnerCell] = partnerIdx;
+    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
+    state.antrian = [{ ronde: 5, sumber: source, efek: effect, syarat: condition }];
+    const engine = createGameEngine(state);
+
+    expect(engine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
+    expect(engine.getState().meter[meter]).toBe(expected);
+    expect(engine.getState().antrian).toEqual([]);
+  });
+  it.each([
+    ['K04 then K01', 3, 0, 'K04', 'K01 sudah ada', 4, { akses: 7, udara: 2 }],
+    ['K01 then K04', 0, 3, 'K04', 'K01 sudah ada', 5, { akses: 4, udara: 1 }],
+    ['K08 then K10', 7, 9, 'K08', 'K10 ada', 2, { hijau: 5, warga: 2 }],
+    ['K10 then K08', 9, 7, 'K08', 'K10 ada', 3, { hijau: 3, warga: 1 }],
+  ] as const)('resolves the pending adjacent pair when cards are played in order: %s', (_order, firstCard, partnerCard, source, condition, dueRound, expectedDelta) => {
+    const state = baruGame(`pending-adjacency-${_order}`);
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.tangan = [firstCard];
+    state.anggaran = 1000;
+    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
+    const remaining = Array.from({ length: 19 }, (_, index) => index)
+      .filter((index) => index !== firstCard && index !== partnerCard);
+    state.deck = [...remaining, partnerCard];
+    const engine = createGameEngine(state);
+
+    expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: firstCard, selIdx: 17 })).toBe(true);
+    expect(engine.getState().papan.ubin[17]).toBe(firstCard);
+    expect(engine.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
+    expect(engine.getState().tangan).toContain(partnerCard);
+    expect(engine.dispatch({ type: 'MAIN_KARTU', kartuIdx: partnerCard, selIdx: 18 })).toBe(true);
+    expect(engine.getState().papan.ubin[18]).toBe(partnerCard);
+
+    while (engine.getState().ronde < dueRound) {
+      if (engine.getState().fase === 'ringkasan') {
+        expect(engine.dispatch({ type: 'SELESAI_RONDE' })).toBe(true);
+      } else {
+        finishRound(engine);
+      }
+    }
+    if (engine.getState().fase !== 'ringkasan') finishRoundStages(engine);
+
+    const resolution = engine.getState().catatan.find((note) => note.ronde === dueRound && note.eventId === undefined);
+    expect(resolution?.delta).toEqual(expectedDelta);
+    expect(engine.getState().antrian.some((effect) => effect.syarat === condition)).toBe(false);
+  });
+
+  it('does not grant a pair bonus when the partner arrives after its due round', () => {
+    const state = baruGame('late-k10-no-retroactive-bonus');
+    state.fase = 'ronde';
+    state.tahapRonde = 'tangan';
+    state.ronde = 5;
+    state.milik = [7];
+    state.papan.ubin[18] = 7;
+    state.meter = { udara: 50, akses: 50, hijau: 50, warga: 50 };
+    state.antrian = [{ ronde: 5, sumber: 'K08', efek: { hijau: 1 }, syarat: 'K10 ada' }];
+    const dueEngine = createGameEngine(state);
+
+    expect(dueEngine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
+    expect(dueEngine.getState().meter.hijau).toBe(50);
+    expect(dueEngine.getState().antrian).toEqual([]);
+
+    const later = structuredClone(dueEngine.getState());
+    later.ronde = 7;
+    later.fase = 'ronde';
+    later.tahapRonde = 'tangan';
+    later.kartuDimainkanRondeIni = null;
+    later.milik.push(9);
+    later.papan.ubin[17] = 9;
+    const lateEngine = createGameEngine(later);
+
+    expect(lateEngine.dispatch({ type: 'LEWATI_RONDE' })).toBe(true);
+    expect(lateEngine.getState().meter.hijau).toBe(50);
+    expect(lateEngine.getState().antrian).toEqual([]);
   });
   it('applies K16 delayed income loss when no temporary kiosk and information are modeled', () => {
     const state = baruGame('k16-unmitigated-condition');

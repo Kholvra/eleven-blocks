@@ -4,7 +4,7 @@ import eventConditions from '../data/event-conditions.json';
 import actions from '../data/actions.json';
 import cards from '../data/cards.json';
 import { allowedTransitions } from './machine';
-import { isBuildableCell } from './board';
+import { areCellsAdjacent, isBuildableCell } from './board';
 import { biayaAksi, biayaKartu, firstOpenBuildableCell, kodeKartu, statusAksi, statusKartu } from './cards';
 import { applyMeterEffect } from './meters';
 import { scheduleEffects, takeDueEffects } from './pending';
@@ -213,10 +213,8 @@ function chooseScheduledEvent(state: GameState, eventId: string, choiceId: strin
   };
   apply(choice.efek);
   const source = event.id;
-  const ownedCodes = new Set(nextState.milik.map((index) => cards.kebijakan[index]?.id)
-    .filter((id): id is string => id !== undefined));
   for (const conditional of choice.efek_kondisional ?? []) {
-    if (evaluateCondition(source, conditional.syarat, ownedCodes) === true) apply(conditional.efek);
+    if (evaluateCondition(source, conditional.syarat, nextState) === true) apply(conditional.efek);
   }
   nextState.antrian = scheduleEffects(
     nextState.antrian,
@@ -352,7 +350,7 @@ function playAction(state: GameState, aksiId: string, kartuIdx?: number): GameSt
 function resolveRoundEffects(state: GameState): void {
   const roundStart = { ...state.meter };
   const roundDelta: Efek = {};
-  const ownedCodes = new Set(state.milik.map((index) => cards.kebijakan[index]?.id).filter((id): id is string => id !== undefined));
+
   const apply = (effect: Efek): Efek => {
     const result = applyMeterEffect(state.meter, effect);
     state.meter = result.meter;
@@ -375,7 +373,7 @@ function resolveRoundEffects(state: GameState): void {
     const pending = takeDueEffects(state.antrian, state.ronde);
     state.antrian = pending.remaining;
     for (const effect of pending.due) {
-      if (evaluateCondition(effect.sumber, effect.syarat, ownedCodes) !== true) continue;
+      if (evaluateCondition(effect.sumber, effect.syarat, state) !== true) continue;
       const delta = apply(effect.efek);
       if (effect.rondeAsal !== undefined) recordAttribution(effect.rondeAsal, 'tertunda', delta);
     }
@@ -418,35 +416,56 @@ function resolveRoundEffects(state: GameState): void {
   });
 }
 
-export function evaluateCondition(source: string, condition: string | undefined, owned: Set<string>): boolean | undefined {
+function ownsPolicy(state: GameState, code: string): boolean {
+  const index = cards.kebijakan.findIndex((card) => card.id === code);
+  return index !== -1 && state.milik.includes(index);
+}
+
+function hasAdjacentPolicyPair(state: GameState, source: string, partner: string): boolean {
+  const sourceIndex = cards.kebijakan.findIndex((card) => card.id === source);
+  const partnerIndex = cards.kebijakan.findIndex((card) => card.id === partner);
+  if (sourceIndex === -1 || partnerIndex === -1) return false;
+
+  let sourceCell = -1;
+  let partnerCell = -1;
+  for (let cell = 0; cell < state.papan.ubin.length; cell += 1) {
+    const occupant = state.papan.ubin[cell];
+    if (occupant === sourceIndex) sourceCell = cell;
+    if (occupant === partnerIndex) partnerCell = cell;
+  }
+
+  return areCellsAdjacent(sourceCell, partnerCell);
+}
+
+export function evaluateCondition(source: string, condition: string | undefined, state: GameState): boolean | undefined {
   if (condition === undefined) return true;
   const eventRules = eventConditions[source as keyof typeof eventConditions];
   if (eventRules !== undefined) {
     for (const rule of eventRules) {
       if (rule.syarat !== condition) continue;
       if (rule.operator === 'none') {
-        for (const card of rule.cards) if (owned.has(card)) return false;
+        for (const card of rule.cards) if (ownsPolicy(state, card)) return false;
         return true;
       }
-      for (const card of rule.cards) if (owned.has(card)) return true;
+      for (const card of rule.cards) if (ownsPolicy(state, card)) return true;
       return false;
     }
   }
   switch (`${source}:${condition}`) {
     case 'K03:K04 tidak ada':
-      return !owned.has('K04');
+      return !ownsPolicy(state, 'K04');
     case 'K04:K01 sudah ada':
-      return owned.has('K01');
+      return hasAdjacentPolicyPair(state, 'K04', 'K01');
     case 'K06:K07 dan K08 tidak ada':
-      return !owned.has('K07') && !owned.has('K08');
+      return !ownsPolicy(state, 'K07') && !ownsPolicy(state, 'K08');
     case 'K11:K15 dan K02 tidak ada':
-      return !owned.has('K15') && !owned.has('K02');
+      return !ownsPolicy(state, 'K15') && !ownsPolicy(state, 'K02');
     case 'K08:K10 ada':
-      return owned.has('K10');
+      return hasAdjacentPolicyPair(state, 'K08', 'K10');
     case 'K14:K07 atau K08 ada':
-      return owned.has('K07') || owned.has('K08');
+      return ownsPolicy(state, 'K07') || ownsPolicy(state, 'K08');
     case 'K14:K07 dan K08 tidak ada':
-      return !owned.has('K07') && !owned.has('K08');
+      return !ownsPolicy(state, 'K07') && !ownsPolicy(state, 'K08');
     case 'K16:Tidak ada kios sementara dan informasi':
       return true;
     default:
