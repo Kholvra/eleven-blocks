@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILDABLE_CELLS, isBuildableCell, labelCell } from '../src/game/board';
+import { areCellsAdjacent, BUILDABLE_CELLS, isBuildableCell, labelCell } from '../src/game/board';
 
 const expectedBuildableCells = [
   17, 18, 19, 20, 21, 22,
@@ -24,6 +24,17 @@ describe('board layout', () => {
     expect(labelCell(17)).toBe('B3');
     expect(labelCell(46)).toBe('G6');
     expect(labelCell(63)).toBe('H8');
+  });
+
+  it('treats only edge-sharing in-bounds board cells as adjacent', () => {
+    expect(areCellsAdjacent(17, 18)).toBe(true);
+    expect(areCellsAdjacent(17, 25)).toBe(true);
+    expect(areCellsAdjacent(17, 26)).toBe(false);
+    expect(areCellsAdjacent(22, 25)).toBe(false);
+    expect(areCellsAdjacent(7, 8)).toBe(false);
+    expect(areCellsAdjacent(17, 17)).toBe(false);
+    expect(areCellsAdjacent(-1, 17)).toBe(false);
+    expect(areCellsAdjacent(17, 64)).toBe(false);
   });
 
   it('rejects invalid buildable indices and labels', () => {
