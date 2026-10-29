@@ -5,7 +5,6 @@ export type Phase =
   | 'event'
   | 'ringkasan'
   | 'laporan'
-  | 'tiket';
 
 export type TahapRonde = 'berita' | 'tangan' | 'resolusi' | 'reaksi' | 'transisi';
 
@@ -62,8 +61,6 @@ export interface GameState {
     eventId?: string;
     pilihanEvent?: string;
   }>;
-  tiket?: { teks: [string, string, string]; url: string; dibuat: number };
-  nama?: string;
   setelan: { audio: boolean };
   waktuSimpan: number;
 }

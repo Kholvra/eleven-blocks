@@ -19,7 +19,6 @@ export type GameAction =
   | { type: 'MAIN_KARTU'; kartuIdx: number; selIdx?: number }
   | { type: 'MAIN_AKSI'; aksiId: string; kartuIdx?: number }
   | { type: 'SETELAN_AUDIO'; aktif: boolean }
-  | { type: 'SIMPAN_TIKET'; teks: [string, string, string]; url: string; nama?: string };
 
 export interface GameEngine {
   getState(): GameState;
@@ -68,22 +67,6 @@ export function createGameEngine(
         if (state.fase !== 'ronde' || state.tahapRonde !== 'tangan' || state.kartuDimainkanRondeIni !== null) return false;
         const nextState = structuredClone(state);
         resolveRoundAndShowRecap(nextState);
-        return commit(nextState);
-      }
-      if (action.type === 'SIMPAN_TIKET') {
-        if (
-          state.fase !== 'tiket' ||
-          state.ronde !== 10 ||
-          action.teks.length !== 3 ||
-          !action.teks.every((text) => typeof text === 'string' && text.length > 0) ||
-          action.url.length === 0 ||
-          action.url.length > 1500
-        ) return false;
-
-        const nextState = structuredClone(state);
-        nextState.tiket = { teks: [...action.teks], url: action.url, dibuat: now() };
-        if (action.nama) nextState.nama = action.nama;
-        else delete nextState.nama;
         return commit(nextState);
       }
       if (action.type === 'SETELAN_AUDIO') {

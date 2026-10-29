@@ -95,7 +95,7 @@ export function hitungSkorAkhir(state: GameState): SkorAkhir {
   if (!record(input) || input.ronde !== 10 || !Number.isInteger(input.ronde)) {
     return { status: 'tidak-valid', alasan: 'Skor akhir hanya tersedia setelah ronde 10.' };
   }
-  if (input.fase !== 'ringkasan' && input.fase !== 'laporan' && input.fase !== 'tiket') {
+  if (input.fase !== 'ringkasan' && input.fase !== 'laporan') {
     return { status: 'tidak-valid', alasan: 'Skor akhir hanya tersedia setelah ronde 10.' };
   }
 
