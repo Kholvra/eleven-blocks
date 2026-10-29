@@ -10,7 +10,7 @@ type ReflectionSection = ReportSections[3];
 interface ReportViewOptions {
   getState(): GameState;
   hitungSkorAkhir(state: GameState): SkorAkhir;
-  ticketStart: HTMLButtonElement;
+  returnToMenu: HTMLButtonElement;
 }
 
 const meterLabels = hudCopy.meter as Record<string, { label: string }>;
@@ -28,7 +28,7 @@ function createSection(title: string, className: string): HTMLElement {
   return element;
 }
 
-function createScoreSummary(score: SkorAkhir, ticketStart: HTMLButtonElement): HTMLDivElement {
+function createScoreSummary(score: SkorAkhir, returnToMenu: HTMLButtonElement): HTMLDivElement {
   const panel = document.createElement('div');
   panel.className = 'report-score';
   if (score.status === 'siap') {
@@ -51,7 +51,7 @@ function createScoreSummary(score: SkorAkhir, ticketStart: HTMLButtonElement): H
       item.append(term, detail);
       supporting.append(item);
     }
-    panel.append(rating, supporting, ticketStart);
+    panel.append(rating, supporting, returnToMenu);
     return panel;
   }
 
@@ -60,7 +60,7 @@ function createScoreSummary(score: SkorAkhir, ticketStart: HTMLButtonElement): H
   unavailable.textContent = score.status === 'mi-tidak-tersedia'
     ? 'Skor bintang belum tersedia untuk sesi ini.'
     : score.alasan;
-  panel.append(unavailable, ticketStart);
+  panel.append(unavailable, returnToMenu);
   return panel;
 }
 
@@ -211,7 +211,7 @@ export function createReportView(options: ReportViewOptions): (results: HTMLElem
     const report = composeLaporanKota(state);
     const [summary, decisions, affected, reflection] = report.sections;
     results.append(
-      createScoreSummary(score, options.ticketStart),
+      createScoreSummary(score, options.returnToMenu),
       createSummarySection(summary),
       createDecisionSection(decisions),
       createAffectedSection(affected),

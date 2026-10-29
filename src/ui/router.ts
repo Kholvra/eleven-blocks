@@ -6,7 +6,6 @@ import { mountAccessibilityControls, mountAccessibilityOptions } from './accessi
 import { createAudioController } from '../audio/audio';
 import type { GameMachine, Phase } from '../game/machine';
 import type { SkorAkhir } from '../game/report';
-import { createTicketScreen } from './ticketScreen';
 import { createTutorialGuide } from './tutorial';
 import { createRoundAutomation } from './roundAutomation';
 import { createReportView } from './reportView';
@@ -17,12 +16,9 @@ const phaseCopy: Record<Phase, { title: string; description?: string }> = {
   event: { title: 'Berita kota', description: 'Layar peristiwa' },
   ringkasan: { title: 'Ringkasan ronde', description: 'Ringkasan' },
   laporan: { title: 'Laporan Kota' },
-  tiket: { title: 'Tiket Keluar', description: 'Tiket sesi' },
 };
 
 export interface ScreenRouterOptions {
-  canContinue: boolean;
-  continueLabel: string;
   statusMessage?: string;
   getState(): GameState;
   dispatch(action: GameAction): boolean;
@@ -77,15 +73,6 @@ export function createScreenRouter(
   };
   let statusMessage = options.statusMessage ?? '';
   const statusTexts: HTMLElement[] = [];
-  const ticketScreen = createTicketScreen({
-    getState: options.getState,
-    dispatch: options.dispatch,
-    onTicketSaved() {
-      machine.restore(options.getState().fase);
-      render();
-    },
-  });
-  const teacherReceiver = ticketScreen.createTeacherReceiver();
   const roundAutomation = createRoundAutomation(() => {
     if (options.getState().fase !== 'ringkasan') return;
     if (options.dispatch({ type: 'SELESAI_RONDE' })) {
@@ -93,6 +80,7 @@ export function createScreenRouter(
       render();
     }
   });
+  let continueButton: HTMLButtonElement | null = null;
   let previousRenderedPhase: Phase | null = null;
   document.addEventListener('visibilitychange', () => {
     roundAutomation.setVisible(document.visibilityState !== 'hidden');
@@ -125,7 +113,7 @@ export function createScreenRouter(
       description.textContent = copy.description;
       screen.append(description);
     }
-    if (phase !== 'menu' && phase !== 'laporan' && phase !== 'tiket') screen.append(createSoundToggle());
+    if (phase !== 'menu' && phase !== 'laporan') screen.append(createSoundToggle());
     if (phase === 'laporan') {
       const results = document.createElement('section');
       results.className = 'results-content ui-panel';
@@ -136,33 +124,18 @@ export function createScreenRouter(
       resultHeading.textContent = 'Hasil sesi';
       results.append(resultHeading);
       screen.append(results);
-      const ticketStart = document.createElement('button');
-      ticketStart.className = 'menu-action ticket-start';
-      ticketStart.type = 'button';
-      ticketStart.textContent = 'Isi Tiket Keluar';
-      ticketStart.addEventListener('click', () => {
-        if (!options.dispatch({ type: 'TRANSISI_FASE', fase: 'tiket' })) return;
-        machine.restore(options.getState().fase);
-        render();
-      });
-      screen.append(ticketStart);
-
-    }
-
-    if (phase === 'tiket') {
-      const backToMenu = document.createElement('button');
-      backToMenu.className = 'menu-action ticket-back-menu';
-      backToMenu.type = 'button';
-      backToMenu.textContent = '🏠 Kembali ke Menu Utama';
-      backToMenu.addEventListener('click', () => {
-        if (location.hash.startsWith('#tiket=') || location.hash === '#guru' || location.hash === '#tiket') {
-          history.pushState(null, '', location.pathname + location.search);
-        }
+      const returnToMenu = document.createElement('button');
+      returnToMenu.className = 'menu-action report-back-menu';
+      returnToMenu.type = 'button';
+      returnToMenu.textContent = 'Kembali ke Menu Utama';
+      returnToMenu.addEventListener('click', () => {
         machine.restore('menu');
         render();
       });
-      screen.append(ticketScreen.intro, ticketScreen.form, ticketScreen.status, ticketScreen.result, ticketScreen.inbound, teacherReceiver.element, backToMenu);
+      screen.append(returnToMenu);
+
     }
+
 
     if (phase === 'tutorial') {
       const continueToRound = (): void => {
@@ -186,19 +159,18 @@ export function createScreenRouter(
       });
       actions.append(start);
 
-      if (options.canContinue) {
-        const continueButton = document.createElement('button');
-        continueButton.className = 'menu-action';
-        continueButton.type = 'button';
-        continueButton.textContent = options.continueLabel;
-        continueButton.addEventListener('click', () => {
-          const phaseToRestore = options.onContinue();
-          if (phaseToRestore === null) return;
-          machine.restore(phaseToRestore);
-          render();
-        });
-        actions.append(continueButton);
-      }
+      continueButton = document.createElement('button');
+      continueButton.className = 'menu-action';
+      continueButton.type = 'button';
+      continueButton.textContent = 'Lanjutkan permainan';
+      continueButton.hidden = true;
+      continueButton.addEventListener('click', () => {
+        const phaseToRestore = options.onContinue();
+        if (phaseToRestore === null) return;
+        machine.restore(phaseToRestore);
+        render();
+      });
+      actions.append(continueButton);
 
       const settingsTrigger = document.createElement('button');
       settingsTrigger.className = 'menu-action menu-settings-trigger';
@@ -269,7 +241,7 @@ export function createScreenRouter(
         },
       });
     }
-    if (phase !== 'menu' && phase !== 'laporan' && phase !== 'tiket') mountAccessibilityControls(screen);
+    if (phase !== 'menu' && phase !== 'laporan') mountAccessibilityControls(screen);
     root.append(screen);
     screens[phase] = screen;
   }
@@ -280,9 +252,14 @@ export function createScreenRouter(
     const state = options.getState();
     const statePhase = state.fase;
     if (currentMachine !== 'menu' && currentMachine !== statePhase) machine.restore(statePhase);
-    const incoming = location.hash.startsWith('#tiket=');
-    const receiving = incoming || location.hash === '#guru';
-    const current = receiving ? 'tiket' : machine.getPhase();
+    if (continueButton) {
+      continueButton.hidden = state.fase === 'menu';
+      continueButton.textContent = state.ronde === 10 &&
+        (state.fase === 'ringkasan' || state.fase === 'laporan')
+        ? 'Lihat hasil tersimpan'
+        : `Lanjutkan permainan (ronde ${state.ronde})`;
+    }
+    const current = machine.getPhase();
     roundAutomation.update(current === statePhase ? statePhase : current, state.ronde, state.seed);
     roundAutomation.setVisible(document.visibilityState !== 'hidden');
     for (const phase of Object.keys(screens) as Phase[]) screens[phase].hidden = phase !== current;
@@ -298,25 +275,13 @@ export function createScreenRouter(
       previousRenderedPhase = current;
     }
     if (current === 'laporan') renderReport(screens.laporan.querySelector('.results-content')!);
-    if (current === 'tiket') {
-      const teacherRoute = location.hash === '#guru' || incoming;
-      ticketScreen.intro.hidden = teacherRoute;
-      ticketScreen.form.hidden = teacherRoute;
-      ticketScreen.status.hidden = teacherRoute;
-      ticketScreen.result.hidden = teacherRoute;
-      ticketScreen.inbound.hidden = teacherRoute;
-      teacherReceiver.element.hidden = !teacherRoute;
-      if (location.hash === '#guru') teacherReceiver.renderEmpty();
-      else if (incoming) teacherReceiver.renderDirect(location.hash.slice('#tiket='.length));
-      else ticketScreen.renderSaved();
-    }
   }
   window.addEventListener('hashchange', render);
 
   const renderReport = createReportView({
     getState: options.getState,
     hitungSkorAkhir: options.hitungSkorAkhir,
-    ticketStart: root.querySelector<HTMLButtonElement>('.ticket-start')!,
+    returnToMenu: root.querySelector<HTMLButtonElement>('.report-back-menu')!,
   });
 
   return {

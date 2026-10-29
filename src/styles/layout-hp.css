@@ -2825,8 +2825,7 @@
 }
 .ui-panel,
 .screen[data-phase="tutorial"] > .ui-panel,
-.screen[data-phase="laporan"] > .ui-panel,
-.screen[data-phase="tiket"] > .ui-panel {
+.screen[data-phase="laporan"] > .ui-panel {
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-panel);
   background: var(--panel-bg);
