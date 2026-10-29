@@ -71,6 +71,7 @@ if (!supportsWebGL2()) {
     router?.setStatus(saved ? '' : 'Simpanan perangkat tidak tersedia. Sesi ini tetap berjalan selama halaman terbuka.');
   };
   let engine = createGameEngine(initialState, saveState);
+
   const hasIncomingTicket = typeof window !== 'undefined' &&
     (window.location.hash.startsWith('#tiket=') || window.location.hash === '#guru');
   machine = createGameMachine(hasIncomingTicket ? 'tiket' : 'menu');
