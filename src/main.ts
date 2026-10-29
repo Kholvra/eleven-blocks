@@ -64,7 +64,7 @@ if (!supportsWebGL2()) {
   let machine: ReturnType<typeof createGameMachine> | null = null;
   const saveState = (state: GameState): void => {
     const saved = saveRepository.save(state);
-    if (machine && machine.getPhase() !== state.fase) {
+    if (machine && machine.getPhase() !== 'menu' && machine.getPhase() !== state.fase) {
       machine.restore(state.fase);
       router?.render();
     }
@@ -72,32 +72,24 @@ if (!supportsWebGL2()) {
   };
   let engine = createGameEngine(initialState, saveState);
 
-  const hasIncomingTicket = typeof window !== 'undefined' &&
-    (window.location.hash.startsWith('#tiket=') || window.location.hash === '#guru');
-  machine = createGameMachine(hasIncomingTicket ? 'tiket' : 'menu');
+  machine = createGameMachine();
 
   const board = setupScene(app, () => engine.getState(), (selIdx) => {
     window.dispatchEvent(new CustomEvent('board-tile-click', { detail: { selIdx } }));
   }, models);
 
-  const completed = loadResult.status === 'valid' && loadResult.state.ronde === 10 &&
-    ['ringkasan', 'laporan', 'tiket'].includes(loadResult.state.fase);
 
   router = createScreenRouter(app, machine, {
     getState: () => engine.getState(),
     dispatch(action: GameAction) {
       return engine.dispatch(action);
     },
-    canContinue: loadResult.status === 'valid',
     onPlacementModeChange(active) {
       board.setPlacementMode(active);
     },
     onFocusBoard() {
       board.focusBoard();
     },
-    continueLabel: completed
-      ? 'Lihat hasil tersimpan'
-      : `Lanjutkan permainan (ronde ${loadResult.status === 'valid' ? loadResult.state.ronde : 1})`,
     statusMessage: loadResult.status === 'invalid' ? loadResult.message : undefined,
     onStartNew() {
       saveRepository.clear();

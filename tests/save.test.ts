@@ -14,10 +14,8 @@ function memoryStorage(initial: Record<string, string> = {}) {
 }
 
 describe('save repository', () => {
-  it('round-trips the complete state, including optional name and ticket', () => {
+  it('round-trips the complete state', () => {
     const state = baruGame('save-seed');
-    state.nama = 'Kota';
-    state.tiket = { teks: ['satu', 'dua', 'tiga'], url: 'https://example.test', dibuat: 123 };
     state.antrian.push({ ronde: 2, sumber: 'K08', efek: { udara: -2 }, catatan: 'tertunda', syarat: 'K10 ada' });
     const { storage } = memoryStorage();
     const repository = createSaveRepository(storage);
@@ -131,16 +129,57 @@ describe('save repository', () => {
     }
   });
 
-  it('accepts a valid round-10 final state', () => {
-    const state = baruGame('final-save');
-    state.ronde = 10;
-    state.fase = 'tiket';
-    state.tiket = { teks: ['satu', 'dua', 'tiga'], url: 'https://example.test', dibuat: 123 };
-    const { storage } = memoryStorage({
+  it('migrates a round-10 ticket save to a report and drops ticket-only data', () => {
+    const state = {
+      ...baruGame('final-save'),
+      ronde: 10,
+      fase: 'tiket',
+      tiket: { teks: ['satu', 'dua', 'tiga'], url: 'https://example.test', dibuat: 123 },
+      nama: 'Kota',
+    };
+    const { storage, values } = memoryStorage({
       'elevenblocks.v1.save': JSON.stringify({ versi: 1, state }),
     });
+    const repository = createSaveRepository(storage);
+    const loaded = repository.load();
 
-    expect(createSaveRepository(storage).load()).toEqual({ status: 'valid', state });
+    expect(loaded.status).toBe('valid');
+    if (loaded.status !== 'valid') return;
+    expect(loaded.state).toMatchObject({ fase: 'laporan', ronde: 10, seed: 'final-save' });
+    expect('tiket' in loaded.state).toBe(false);
+    expect('nama' in loaded.state).toBe(false);
+    const migrated = JSON.parse(values.get('elevenblocks.v1.save')!) as { state: Record<string, unknown> };
+    expect(migrated.state.fase).toBe('laporan');
+    expect('tiket' in migrated.state).toBe(false);
+    expect('nama' in migrated.state).toBe(false);
+
+
+    expect(repository.save(loaded.state)).toBe(true);
+    const persisted = JSON.parse(values.get('elevenblocks.v1.save')!) as { state: Record<string, unknown> };
+    expect(persisted.state.fase).toBe('laporan');
+    expect('tiket' in persisted.state).toBe(false);
+    expect('nama' in persisted.state).toBe(false);
+  });
+
+  it('keeps a legacy save available in memory when its migration rewrite is blocked', () => {
+    const state = { ...baruGame('legacy-memory'), ronde: 10, fase: 'tiket' };
+    const raw = JSON.stringify({ versi: 1, state });
+    let reads = 0;
+    let removed = false;
+    const storage: SaveStorage = {
+      getItem: () => { reads += 1; return raw; },
+      setItem: () => { throw new Error('blocked'); },
+      removeItem: () => { removed = true; },
+    };
+    const repository = createSaveRepository(storage);
+    const loaded = repository.load();
+
+    expect(loaded.status).toBe('valid');
+    if (loaded.status !== 'valid') return;
+    expect(loaded.state.fase).toBe('laporan');
+    expect(removed).toBe(false);
+    expect(repository.load()).toEqual({ status: 'valid', state: loaded.state });
+    expect(reads).toBe(1);
   });
 
   it('clears persistent and in-memory saves', () => {

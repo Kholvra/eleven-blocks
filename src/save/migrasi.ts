@@ -2,7 +2,7 @@ import type { GameState } from '../game/types';
 
 export const VERSI_STATE_TERBARU = 1;
 
-const FASE = ['menu', 'tutorial', 'ronde', 'event', 'ringkasan', 'laporan', 'tiket'] as const;
+const FASE = ['menu', 'tutorial', 'ronde', 'event', 'ringkasan', 'laporan'] as const;
 const TAHAP = ['berita', 'tangan', 'resolusi', 'reaksi', 'transisi'] as const;
 const METER = ['udara', 'akses', 'hijau', 'warga'] as const;
 
@@ -49,7 +49,7 @@ function stateValid(value: unknown): value is GameState {
   if (value.versi !== 1 || typeof value.seed !== 'string' || !finite(value.rngS)) return false;
   if (!(FASE as readonly unknown[]).includes(value.fase) || !(TAHAP as readonly unknown[]).includes(value.tahapRonde)) return false;
   if (!finite(value.ronde) || value.ronde < 1 || value.ronde > 10 || !Number.isInteger(value.ronde)) return false;
-  if (value.ronde < 10 && (value.fase === 'laporan' || value.fase === 'tiket')) return false;
+  if (value.ronde < 10 && value.fase === 'laporan') return false;
   if (!finite(value.anggaran) || value.anggaran < 0 || !meterValid(value.meter)) return false;
   if (!record(value.papan) || value.papan.lebar !== 8 || value.papan.tinggi !== 8 || value.papan.selBuildable !== 24 ||
       !Array.isArray(value.papan.ubin) || value.papan.ubin.length !== 256 ||
@@ -72,13 +72,19 @@ function stateValid(value: unknown): value is GameState {
       (entry.eventId === undefined || typeof entry.eventId === 'string') &&
       (entry.pilihanEvent === undefined || typeof entry.pilihanEvent === 'string'))) return false;
   if (!record(value.setelan) || typeof value.setelan.audio !== 'boolean' || !finite(value.waktuSimpan)) return false;
-  if (value.nama !== undefined && typeof value.nama !== 'string') return false;
-  if (value.tiket !== undefined && (!record(value.tiket) || !Array.isArray(value.tiket.teks) || value.tiket.teks.length !== 3 ||
-      !value.tiket.teks.every((text) => typeof text === 'string') || typeof value.tiket.url !== 'string' || !finite(value.tiket.dibuat))) return false;
   return true;
 }
 
 export function migrasikanSave(value: unknown): GameState | null {
-  if (!record(value) || value.versi !== VERSI_STATE_TERBARU || !stateValid(value.state)) return null;
-  return value.state;
+  if (!record(value) || value.versi !== VERSI_STATE_TERBARU || !record(value.state)) return null;
+  const source = value.state;
+  const legacyTicketPhase = source.fase === 'tiket';
+  if (!legacyTicketPhase && !('tiket' in source) && !('nama' in source)) {
+    return stateValid(source) ? source : null;
+  }
+  const state = { ...source };
+  if (legacyTicketPhase) state.fase = 'laporan';
+  delete state.tiket;
+  delete state.nama;
+  return stateValid(state) ? state : null;
 }

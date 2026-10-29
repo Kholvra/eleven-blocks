@@ -8,8 +8,7 @@ export const allowedTransitions: Record<Phase, readonly Phase[]> = {
   ronde: ['event', 'ringkasan'],
   event: ['ringkasan'],
   ringkasan: ['ronde', 'laporan'],
-  laporan: ['tiket'],
-  tiket: ['menu'],
+  laporan: [],
 };
 
 export interface GameMachine {

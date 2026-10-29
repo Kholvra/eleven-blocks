@@ -571,7 +571,7 @@ function makeStatusItem(label: string): { root: HTMLElement; value: HTMLElement 
 
 function validState(value: GameState): boolean {
   return Boolean(value) &&
-    ['menu', 'tutorial', 'ronde', 'event', 'ringkasan', 'laporan', 'tiket'].includes(value.fase) &&
+    ['menu', 'tutorial', 'ronde', 'event', 'ringkasan', 'laporan'].includes(value.fase) &&
     ['berita', 'tangan', 'resolusi', 'reaksi', 'transisi'].includes(value.tahapRonde) &&
     Number.isInteger(value.ronde) && value.ronde >= 1 && value.ronde <= 10 &&
     Number.isFinite(value.anggaran) && value.anggaran >= 0 &&

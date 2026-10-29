@@ -295,10 +295,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ticket-start {
-  justify-self: start;
-  min-height: var(--target-min);
-}
 
 .results-supporting {
   display: flex;
@@ -332,50 +328,6 @@
   border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
-}
-.teacher-receiver {
-  display: grid;
-  gap: var(--space-4);
-  width: min(100%, 42rem);
-  min-width: 0;
-}
-
-.teacher-input-form {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.teacher-input-form label {
-  font-weight: 650;
-}
-
-.teacher-input-form textarea,
-.teacher-plain-summary {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  padding: var(--space-3);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
-.teacher-input-form :is(textarea, button):focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 3px;
-}
-
-.teacher-plain-summary {
-  margin: 0;
-}
-
-.teacher-input-form p {
-  margin: 0;
 }
 
 .results-unavailable {
@@ -586,234 +538,6 @@
   margin: 0;
 }
 
-.screen[data-phase="tiket"] {
-  width: min(100%, 46rem);
-  justify-items: stretch;
-  align-content: start;
-  padding: clamp(var(--space-4), 5vw, var(--space-7));
-  gap: var(--space-4);
-}
-
-.ticket-intro {
-  max-width: 42rem;
-}
-
-.teacher-receiver {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-4);
-}
-
-.teacher-input-form {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-3);
-}
-
-.teacher-input-form label {
-  color: var(--color-text);
-  font-weight: 650;
-}
-
-.teacher-input-form textarea {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: var(--target-min);
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  resize: vertical;
-  overflow-wrap: anywhere;
-}
-
-.teacher-plain-summary {
-  margin: 0;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  line-height: var(--line-height-body);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.teacher-input-form :focus-visible,
-.teacher-receiver :focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 3px;
-}
-
-.teacher-receiver[hidden] {
-  display: none;
-}
-
-.ticket-form,
-.ticket-inbound {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-4);
-}
-
-.ticket-question {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface-raised);
-}
-
-.ticket-question legend {
-  max-width: 40rem;
-  padding-inline: var(--space-2);
-  color: var(--color-text);
-  font-size: var(--font-size-subheading);
-  font-weight: 700;
-  line-height: var(--line-height-heading);
-}
-
-.ticket-choice {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  min-height: var(--target-min);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  line-height: var(--line-height-body);
-  cursor: pointer;
-}
-
-.ticket-choice:has(input:checked) {
-  border: 2px solid var(--color-focus);
-  background: var(--color-page);
-  font-weight: 650;
-}
-
-.ticket-choice input {
-  flex: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0.1rem 0 0;
-  accent-color: var(--color-focus);
-}
-
-.ticket-name {
-  display: grid;
-  max-width: 30rem;
-  gap: var(--space-2);
-  color: var(--color-text);
-  font-weight: 650;
-}
-
-.ticket-name input,
-.ticket-url-label textarea {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--target-min);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-}
-
-.ticket-url-label {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-2);
-  color: var(--color-text);
-  font-weight: 650;
-}
-
-.ticket-url-label textarea {
-  resize: vertical;
-  overflow-wrap: anywhere;
-  font-weight: 400;
-}
-
-.screen textarea.ticket-summary {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  overflow-wrap: anywhere;
-  resize: vertical;
-}
-
-.ticket-error,
-.ticket-status,
-.ticket-mismatch {
-  margin: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-.ticket-status:empty {
-  display: none;
-}
-
-.ticket-error,
-.ticket-mismatch {
-  border-width: 2px;
-}
-
-.ticket-result {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface-raised);
-}
-
-.ticket-inbound {
-  min-width: 0;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface-raised);
-}
-
-.ticket-result h2,
-.ticket-inbound h2,
-.ticket-inbound h3 {
-  margin: 0;
-  color: var(--color-text);
-  line-height: var(--line-height-heading);
-}
-
-.ticket-result h2,
-.ticket-inbound h2 {
-  font-size: var(--font-size-subheading);
-}
-
-.ticket-summary,
-.ticket-answer p,
-.ticket-nickname {
-  margin: 0;
-  color: var(--color-text);
-  line-height: var(--line-height-body);
-  overflow-wrap: anywhere;
-}
-
 .tutorial-actions {
   display: flex;
   flex-wrap: wrap;
@@ -862,95 +586,6 @@
   outline-offset: 3px;
 }
 
-.ticket-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.ticket-copy {
-  min-width: var(--target-min);
-}
-
-.ticket-qr {
-  display: grid;
-  place-items: start;
-  min-height: 1.5rem;
-  color: var(--color-text);
-}
-
-.ticket-qr img {
-  display: block;
-  width: min(100%, 16rem);
-  height: auto;
-  padding: var(--space-2);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
-
-.ticket-answers {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.ticket-answer {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 0;
-  padding-block: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.ticket-answer h3,
-.ticket-inbound > h3 {
-  font-size: 1rem;
-}
-
-.ticket-meters {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-2);
-  margin: var(--space-3) 0 0;
-}
-
-.ticket-meters dt {
-  color: var(--color-text-muted);
-}
-
-.ticket-meters dd {
-  margin: 0;
-  color: var(--color-text);
-  font-size: var(--font-size-subheading);
-  font-variant-numeric: tabular-nums;
-}
-
-.ticket-copy-fallback {
-  position: fixed;
-  top: 0;
-  left: -10000px;
-}
-
-.ticket-copy-manual {
-  box-sizing: border-box;
-  display: block;
-  width: 100%;
-  min-width: 0;
-  min-height: 5rem;
-  padding: var(--space-2);
-  border: 2px solid var(--color-focus);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
-.ticket-form :focus-visible,
-.ticket-result :focus-visible,
-.ticket-inbound :focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 3px;
-}
 
 .tutorial-tip[open] > p,
 .tutorial-tip[open] > .tutorial-steps {
@@ -990,63 +625,12 @@
     line-height: 1.4;
   }
 }
-.ticket-form button:disabled {
-  cursor: wait;
-  opacity: 0.75;
-}
 
-@media (max-width: 42rem) {
-  .screen[data-phase="tiket"] {
-    padding: var(--space-4);
-    gap: var(--space-3);
-  }
-
-  .ticket-question,
-  .ticket-result,
-  .ticket-inbound {
-    padding: var(--space-3);
-  }
-
-  .ticket-meters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ticket-controls > button {
-    flex: 1 1 100%;
-  }
-}
-.ticket-form[hidden],
-.ticket-result[hidden],
-.ticket-inbound[hidden],
-.teacher-receiver[hidden] {
-  display: none !important;
-}
-.ticket-back-menu {
-  display: block;
-  width: fit-content;
-  margin: var(--space-4) auto 0;
-  padding: var(--space-3) var(--space-6);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #ffffff;
-  background: var(--color-focus);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-control);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.ticket-back-menu:hover {
-  background: color-mix(in srgb, var(--color-focus) 85%, #ffffff);
-  transform: translateY(-2px);
-}
 
 
 .screen[data-phase="menu"],
 .screen[data-phase="tutorial"],
-.screen[data-phase="laporan"],
-.screen[data-phase="tiket"] {
+.screen[data-phase="laporan"] {
   position: fixed;
   z-index: 1;
   inset: 0;
@@ -1068,15 +652,13 @@
 
 .screen[data-phase="menu"] > :not(.sound-toggle),
 .screen[data-phase="tutorial"] > :not(.sound-toggle),
-.screen[data-phase="laporan"] > :not(.sound-toggle),
-.screen[data-phase="tiket"] > :not(.sound-toggle) {
+.screen[data-phase="laporan"] > :not(.sound-toggle) {
   pointer-events: auto;
 }
 
 .screen[data-phase="menu"] h1,
 .screen[data-phase="tutorial"] h1,
-.screen[data-phase="laporan"] h1,
-.screen[data-phase="tiket"] h1 {
+.screen[data-phase="laporan"] h1 {
   font-family: var(--font-game-display);
   font-size: clamp(2rem, 6vw, 4.25rem);
   font-weight: 950;
@@ -1088,8 +670,7 @@
 
 .screen[data-phase="menu"] > :is(p, .brand-mark),
 .screen[data-phase="tutorial"] > :is(p, .tutorial-guide),
-.screen[data-phase="laporan"] > .results-content,
-.screen[data-phase="tiket"] > :is(.ticket-intro, .ticket-form, .ticket-result, .ticket-inbound, .teacher-receiver) {
+.screen[data-phase="laporan"] > .results-content {
   width: min(100%, 49rem);
   padding: clamp(1rem, 3vw, 2rem);
   border: 1px solid var(--glass-border);
@@ -1136,8 +717,6 @@
 
 
 .results-content h2,
-.ticket-result h2,
-.ticket-inbound h2,
 .tutorial-current-step h2 {
   color: #215b47;
   font-weight: 900;
@@ -1155,10 +734,6 @@
   text-shadow: 0 0 10px rgb(242 170 53 / 55%);
 }
 
-.screen[data-phase="tiket"] {
-  place-content: start center;
-  padding-block: max(1.5rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-bottom));
-}
 
 .screen[data-phase="laporan"] {
   place-content: start center;
@@ -1192,8 +767,7 @@
 
 .screen[data-phase="menu"],
 .screen[data-phase="tutorial"],
-.screen[data-phase="laporan"],
-.screen[data-phase="tiket"] {
+.screen[data-phase="laporan"] {
   background: rgb(45 38 64 / 32%);
   backdrop-filter: blur(4px);
 }
@@ -1226,8 +800,6 @@
 }
 
 .results-content h2,
-.ticket-result h2,
-.ticket-inbound h2,
 .tutorial-current-step h2 {
   color: #514335;
 }
@@ -1245,8 +817,7 @@
 @media (max-width: 38rem) {
   .screen[data-phase="menu"],
   .screen[data-phase="tutorial"],
-  .screen[data-phase="laporan"],
-  .screen[data-phase="tiket"] {
+  .screen[data-phase="laporan"] {
     padding:
       max(0.75rem, env(safe-area-inset-top))
       max(0.75rem, env(safe-area-inset-right))
