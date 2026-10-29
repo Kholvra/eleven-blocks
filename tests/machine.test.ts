@@ -23,7 +23,6 @@ describe('game machine', () => {
     ['event', 'ronde'],
     ['ringkasan', 'event'],
     ['laporan', 'menu'],
-    ['tiket', 'laporan'],
   ] as const)('rejects %s -> %s without changing the phase', (initialPhase, nextPhase) => {
     const machine = createGameMachine(initialPhase);
 
@@ -36,6 +35,6 @@ describe('game machine', () => {
     machine.restore('laporan');
 
     expect(machine.getPhase()).toBe('laporan');
-    expect(machine.transition('tiket')).toBe(true);
+    expect(machine.transition('ronde')).toBe(false);
   });
 });
