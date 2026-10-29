@@ -43,8 +43,27 @@ export function createSaveRepository(storage: SaveStorage | null = browserStorag
       if (raw === null && memoryFallback) raw = memory;
       if (raw === null) return { status: 'empty' };
       try {
-        const state = migrasikanSave(JSON.parse(raw) as unknown);
-        if (state !== null) return { status: 'valid', state };
+        const parsed = JSON.parse(raw) as { state?: unknown };
+        const state = migrasikanSave(parsed);
+        if (state !== null) {
+          if (parsed.state !== state) {
+            const normalized = JSON.stringify({ versi: VERSI_STATE_TERBARU, state });
+            if (normalized !== undefined) {
+              memory = normalized;
+              if (storage === null || memoryFallback) {
+                memoryFallback = true;
+              } else {
+                try {
+                  storage.setItem(SAVE_KEY, normalized);
+                  memoryFallback = false;
+                } catch {
+                  memoryFallback = true;
+                }
+              }
+            }
+          }
+          return { status: 'valid', state };
+        }
       } catch {
         // Invalid JSON is handled like every other invalid save.
       }
