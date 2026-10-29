@@ -48,6 +48,8 @@ export function composeLaporanKota(state: GameState): LaporanKota {
     const condition = entry.kartuIdx === null ? undefined : cards.kebijakan[entry.kartuIdx]?.kondisi;
     return condition ? [condition] : [];
   }))];
+  const decisionConditions = new Set(decisions.flatMap((decision) => decision.kondisi ? [decision.kondisi] : []));
+  const additionalConditions = conditions.filter((condition) => !decisionConditions.has(condition));
   const meterStart = meterCopy(balance.awal.meter);
   const meterEnd = meterCopy(state.meter);
   return {
@@ -58,7 +60,7 @@ export function composeLaporanKota(state: GameState): LaporanKota {
         { id: 'akhir', meter: meterCopy(state.meter), disimulasikan: true },
       ] },
       { id: 'keputusan', tersedia: state.atribusiKeputusan !== undefined, item: decisions, aksiTerpilih: chosenActions },
-      { id: 'pihak-terdampak', tersedia: conditions.length > 0, kondisi: conditions },
+      { id: 'pihak-terdampak', tersedia: additionalConditions.length > 0, kondisi: additionalConditions },
       { id: 'refleksi', prompt: 'Keputusan mana yang paling sulit kamu timbang, dan informasi apa yang ingin kamu pertimbangkan berikutnya?' },
     ],
   };

@@ -12,6 +12,20 @@ const modelUrls = {
   market: new URL('../assets/3d/market.glb', import.meta.url).href,
   recycleBin: new URL('../assets/3d/recycle-bin.glb', import.meta.url).href,
   park: new URL('../assets/3d/park.glb', import.meta.url).href,
+  trafficGate: new URL('../assets/3d/traffic-gate.glb', import.meta.url).href,
+  schoolZone: new URL('../assets/3d/school-zone.glb', import.meta.url).href,
+  communityHouse: new URL('../assets/3d/community-house.glb', import.meta.url).href,
+  canalBridge: new URL('../assets/3d/canal-bridge.glb', import.meta.url).href,
+  waterTower: new URL('../assets/3d/water-tower.glb', import.meta.url).href,
+  pocketPark: new URL('../assets/3d/pocket-park.glb', import.meta.url).href,
+  mangroveTree: new URL('../assets/3d/mangrove-tree.glb', import.meta.url).href,
+  solarRoof: new URL('../assets/3d/solar-roof.glb', import.meta.url).href,
+  rusunawa: new URL('../assets/3d/rusunawa.glb', import.meta.url).href,
+  streetFood: new URL('../assets/3d/street-food.glb', import.meta.url).href,
+  canopyTree: new URL('../assets/3d/canopy-tree.glb', import.meta.url).href,
+  roadBridge: new URL('../assets/3d/road-bridge.glb', import.meta.url).href,
+  carParking: new URL('../assets/3d/car-parking.glb', import.meta.url).href,
+  schoolCrossing: new URL('../assets/3d/school-crossing.glb', import.meta.url).href,
 };
 
 export async function loadBuildingModels(): Promise<ReadonlyMap<string, Object3D>> {

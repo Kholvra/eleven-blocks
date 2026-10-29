@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { composeLaporanKota, hitungSkorAkhir } from '../src/game/report';
 import { migrasikanSave } from '../src/save/migrasi';
 import { baruGame } from '../src/game/state';
+import cards from '../src/data/cards.json';
 import type { GameState, KunciMeter } from '../src/game/types';
 
 function finalState(meter: Record<KunciMeter, number>): GameState {
@@ -141,22 +142,29 @@ describe('composeLaporanKota', () => {
     expect(report.sections[1].item).toHaveLength(3);
   });
 
-  it('includes conditions from every logged policy in log order, de-duplicated', () => {
+  it('keeps only conditions from decisions outside the top three in the additional list', () => {
     const state = finalState({ udara: 44, akses: 46, hijau: 39, warga: 51 });
     state.catatan = [
       { ronde: 1, kartuIdx: 0, delta: {}, meter: state.meter, anggaran: 50 },
-      { ronde: 2, kartuIdx: 0, delta: {}, meter: state.meter, anggaran: 50 },
-      { ronde: 3, kartuIdx: 1, delta: {}, meter: state.meter, anggaran: 50 },
+      { ronde: 2, kartuIdx: 1, delta: {}, meter: state.meter, anggaran: 50 },
+      { ronde: 3, kartuIdx: 2, delta: {}, meter: state.meter, anggaran: 50 },
       { ronde: 4, kartuIdx: 3, delta: {}, meter: state.meter, anggaran: 50 },
+      { ronde: 5, kartuIdx: 4, delta: {}, meter: state.meter, anggaran: 50 },
     ];
-    state.atribusiKeputusan = state.catatan.map(({ ronde }) => ({ ronde, langsung: {}, tertunda: {} }));
+    state.atribusiKeputusan = state.catatan.map(({ ronde }) => ({ ronde, langsung: { udara: ronde }, tertunda: {} }));
     const report = composeLaporanKota(state);
-    expect(report.sections[1].item.map(({ ronde }) => ronde)).toEqual([1, 2, 3]);
-    expect(report.sections[2].kondisi).toEqual([
-      'Makan 1 lajur parkir; tanpa Dialog Warga, pemilik mobil protes (warga −1 sekali).',
-      'PKL bisa terusir kalau belum ada kios pengganti (warga −2 sekali; netral jika K15 sudah ada).',
-      'Biaya pengadaan besar; kalau K03 jalan tapi bus telat, warga marah (warga −1 sekali di event).',
-    ]);
+    const topConditions = report.sections[1].item.flatMap(({ kondisi }) => kondisi ? [kondisi] : []);
+    const additionalConditions = report.sections[2].kondisi;
+    const loggedConditions = [...new Set(state.catatan.flatMap(({ kartuIdx }) => {
+      const condition = kartuIdx === null ? undefined : cards.kebijakan[kartuIdx]?.kondisi;
+      return condition ? [condition] : [];
+    }))];
+    expect(report.sections[1].item.map(({ ronde }) => ronde)).toEqual([5, 4, 3]);
+    for (const condition of topConditions) {
+      expect(additionalConditions).not.toContain(condition);
+    }
+    expect(additionalConditions.length).toBeGreaterThan(0);
+    expect(new Set([...topConditions, ...additionalConditions])).toEqual(new Set(loggedConditions));
   });
 
   it('distinguishes unavailable attribution from an available empty decision history', () => {

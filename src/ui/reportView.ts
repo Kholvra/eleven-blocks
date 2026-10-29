@@ -40,8 +40,8 @@ function createScoreSummary(score: SkorAkhir, ticketStart: HTMLButtonElement): H
     const supporting = document.createElement('dl');
     supporting.className = 'results-supporting';
     for (const [label, value] of [
-      ['Ambang tercapai (T)', score.t],
-      ['Meter kritis (C)', score.c],
+      ['Jumlah meter yang mencapai target', score.t],
+      ['Jumlah meter di bawah batas kritis', score.c],
     ] as const) {
       const item = document.createElement('div');
       const term = document.createElement('dt');
@@ -126,10 +126,10 @@ function createDecisionCard(decision: DecisionsSection['item'][number]): HTMLEle
   const effect = document.createElement('p');
   const delta = Object.entries(decision.delta).map(([key, amount]) =>
     `${meterLabel(key)}: ${amount > 0 ? '+' : ''}${amount}`);
-  effect.textContent = delta.length ? `Efek tercatat: ${delta.join(', ')}.` : 'Efek meter tercatat: tidak ada perubahan.';
+  effect.textContent = delta.length ? `Perubahan meter: ${delta.join(', ')}.` : 'Tidak ada perubahan pada meter.';
   if (decision.kondisi) {
     const tradeoff = document.createElement('p');
-    tradeoff.textContent = `Kondisi: ${decision.kondisi}`;
+    tradeoff.textContent = `Yang perlu diperhatikan: ${decision.kondisi}`;
     card.append(heading, details, effect, tradeoff);
   } else {
     card.append(heading, details, effect);
@@ -155,7 +155,7 @@ function createDecisionSection(decisions: DecisionsSection): HTMLElement {
   }
 
   const actionsHeading = document.createElement('h4');
-  actionsHeading.textContent = 'Aksi terpilih';
+  actionsHeading.textContent = 'Langkah yang kamu pilih';
   const actions = document.createElement('ul');
   if (decisions.aksiTerpilih.length) {
     for (const action of decisions.aksiTerpilih) {
@@ -165,7 +165,7 @@ function createDecisionSection(decisions: DecisionsSection): HTMLElement {
     }
   } else {
     const item = document.createElement('li');
-    item.textContent = 'Belum ada aksi yang dipilih.';
+    item.textContent = 'Belum ada langkah yang dipilih.';
     actions.append(item);
   }
   section.append(actionsHeading, actions);
@@ -173,11 +173,11 @@ function createDecisionSection(decisions: DecisionsSection): HTMLElement {
 }
 
 function createAffectedSection(affected: AffectedSection): HTMLElement {
-  const section = createSection('Dampak Keputusan dalam Permainan', 'report-affected');
+  const section = createSection('Catatan lain dari simulasi', 'report-affected');
 
   if (!affected.tersedia) {
     const empty = document.createElement('p');
-    empty.textContent = 'Belum ada dampak yang tercatat.';
+    empty.textContent = 'Tidak ada catatan tambahan untuk ditampilkan.';
     section.append(empty);
     return section;
   }
