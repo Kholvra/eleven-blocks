@@ -10,6 +10,7 @@ const categories = new Set(['transport', 'tata-guna-lahan', 'air', 'sampah', 'hi
 const numericTokenPattern = /\b\d+(?:[.,]\d+)?%?\b/g;
 const errors = [];
 let registryNumbers;
+let canonicalFacts;
 let dataDirectory = join(root, 'src/data');
 let dataLabel = 'src/data';
 let cardsOnly = false;
@@ -62,25 +63,38 @@ function numericTokens(text) {
   return text.match(numericTokenPattern) ?? [];
 }
 
-function loadRegistryNumbers(file, field, idx) {
-  if (registryNumbers) return registryNumbers;
-  const registryFile = 'docs/game/04-angka-dan-sumber.md';
+function loadCanonicalFacts(file, field, idx) {
+  if (canonicalFacts) return canonicalFacts;
+  const registryFile = 'src/data/fakta.json';
   const path = join(root, registryFile);
   if (!existsSync(path)) {
-    fail(file, field, `${registryFile} §1 tidak dapat dibaca untuk pemeriksaan klaim angka`, idx);
-    registryNumbers = new Set();
-    return registryNumbers;
+    fail(file, field, `${registryFile} tidak dapat dibaca untuk pemeriksaan fakta`, idx);
+    canonicalFacts = new Map();
+    return canonicalFacts;
   }
-  const content = readFileSync(path, 'utf8');
-  const start = content.match(/^## 1\..*$/m)?.index ?? -1;
-  const end = start < 0 ? -1 : content.indexOf('\n## ', start + 1);
-  if (start < 0) {
-    fail(file, field, `${registryFile} §1 tidak ditemukan untuk pemeriksaan klaim angka`, idx);
-    registryNumbers = new Set();
-  } else {
-    const section = content.slice(start, end < 0 ? undefined : end);
-    registryNumbers = new Set(numericTokens(section));
+  let registry;
+  try {
+    registry = JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    fail(file, field, `${registryFile} bukan JSON valid untuk pemeriksaan fakta`, idx);
+    canonicalFacts = new Map();
+    return canonicalFacts;
   }
+  if (!isObject(registry) || !Array.isArray(registry.fakta)) {
+    fail(file, field, `${registryFile} wajib memuat array fakta`, idx);
+    canonicalFacts = new Map();
+    return canonicalFacts;
+  }
+  canonicalFacts = new Map(registry.fakta.filter(isObject).map(fact => [fact.baris, fact]));
+  return canonicalFacts;
+}
+
+function loadRegistryNumbers(file, field, idx) {
+  if (registryNumbers) return registryNumbers;
+  const factFields = ['nilai', 'satuan', 'arti', 'konteks', 'penerbit', 'tahun'];
+  const facts = [...loadCanonicalFacts(file, field, idx).values()];
+  registryNumbers = new Set(facts.flatMap(fact => factFields.flatMap(key =>
+    typeof fact[key] === 'string' ? numericTokens(fact[key]) : [])));
   return registryNumbers;
 }
 
@@ -98,7 +112,7 @@ function validateNumericClaims(record, file, idx) {
     if (!tokens.length) return;
     const allowed = loadRegistryNumbers(file, `sumber[${sourceIndex}].teks`, idx);
     for (const token of tokens) {
-      if (!allowed.has(token)) fail(file, `sumber[${sourceIndex}].teks`, `token angka "${token}" tidak ditemukan di docs/game/04-angka-dan-sumber.md §1`, idx);
+      if (!allowed.has(token)) fail(file, `sumber[${sourceIndex}].teks`, `token angka "${token}" tidak ditemukan di src/data/fakta.json`, idx);
     }
   });
 }
@@ -410,32 +424,6 @@ function validateEvents(data, file) {
   });
 }
 
-function canonicalFactRows(file) {
-  const canonicalFile = 'docs/game/04-angka-dan-sumber.md';
-  const path = join(root, canonicalFile);
-  if (!existsSync(path)) {
-    fail(file, 'baris', `${canonicalFile} §1 tidak dapat dibaca untuk pencocokan fakta`, undefined);
-    return null;
-  }
-  const content = readFileSync(path, 'utf8');
-  const start = content.match(/^## 1\..*$/m)?.index ?? -1;
-  const end = start < 0 ? -1 : content.indexOf('\n## ', start + 1);
-  if (start < 0) {
-    fail(file, 'baris', `${canonicalFile} §1 tidak ditemukan untuk pencocokan fakta`, undefined);
-    return null;
-  }
-  const section = content.slice(start, end < 0 ? undefined : end);
-  const rows = new Map();
-  for (const line of section.split('\n')) {
-    const match = line.match(/^\|\s*(\d+)\s*\|(.+)\|\s*$/);
-    if (!match) continue;
-    const cells = match[2].split('|').map(cell => cell.trim());
-    if (cells.length >= 6) rows.set(Number(match[1]), cells);
-  }
-  const indexStart = content.match(/^## 9\..*$/m)?.index ?? -1;
-  const index = indexStart < 0 ? '' : content.slice(indexStart);
-  return { rows, index };
-}
 
 function validateFactReferences(facts) {
   const knownIds = new Set(facts.filter(isObject).map(fact => fact.id).filter(id => typeof id === 'string'));
@@ -490,7 +478,7 @@ function validateFacts(data, file) {
     fail(file, 'fakta', 'akar JSON wajib memuat array fakta', undefined);
     return;
   }
-  const canonical = canonicalFactRows(file);
+  const canonical = loadCanonicalFacts(file, 'baris', undefined);
   const ids = new Set();
   data.fakta.forEach((fact, position) => {
     const factId = fact?.id ?? `(record ${position + 1})`;
@@ -533,34 +521,15 @@ function validateFacts(data, file) {
       fail(file, 'link_pendek', `fakta ${fact.id} baris ${String(rowNumber)}: gunakan label tautan, bukan URL lengkap`, idx);
     }
 
-    const canonicalRow = canonical?.rows.get(rowNumber);
-    if (!canonicalRow) {
-      fail(file, 'baris', `fakta ${fact.id} baris ${String(rowNumber)}: tidak ada sebagai baris tabel dalam docs/game/04-angka-dan-sumber.md §1`, idx);
+    const canonicalFact = canonical.get(rowNumber);
+    if (!canonicalFact) {
+      fail(file, 'baris', `fakta ${fact.id} baris ${String(rowNumber)}: tidak ada dalam registry src/data/fakta.json`, idx);
       return;
     }
-    const [canonicalName, canonicalValue, canonicalUnit, canonicalContext, canonicalSource] = canonicalRow;
-    const mappingError = field => fail(file, field, `fakta ${fact.id} baris ${String(rowNumber)}: nilai tidak cocok dengan baris kanonis #${rowNumber}`, idx);
-    if (fact.nilai !== canonicalValue) mappingError('nilai');
-    if (fact.satuan !== canonicalUnit) mappingError('satuan');
-    if (typeof fact.penerbit === 'string' && !canonicalSource.includes(fact.penerbit)) {
-      fail(file, 'penerbit', `fakta ${fact.id} baris ${String(rowNumber)}: penerbit tidak cocok dengan sumber kanonis #${rowNumber}`, idx);
-    }
-    const canonicalYearText = `${canonicalName} ${canonicalValue} ${canonicalUnit} ${canonicalSource}`;
-    const yearIsListed = canonicalYearText.includes(fact.tahun);
-    if (typeof fact.tahun === 'string' && fact.tahun !== 'Tidak dicantumkan' && !yearIsListed) {
-      fail(file, 'tahun', `fakta ${fact.id} baris ${String(rowNumber)}: tahun tidak tercantum pada nilai, satuan, atau sumber kanonis #${rowNumber}`, idx);
-    }
-    const canonicalYears = canonicalYearText.match(/\b(?:19|20)\d{2}\b/g) ?? [];
-    const dataYears = canonicalYears.filter(year => !new RegExp(`(?:target|pada)\\s+${year}`).test(canonicalValue));
-    if (fact.tahun === 'Tidak dicantumkan' && dataYears.length > 0) {
-      fail(file, 'tahun', `fakta ${fact.id} baris ${String(rowNumber)}: tahun data tercantum pada baris kanonis #${rowNumber}`, idx);
-    }
-    const publisherKey = typeof fact.penerbit === 'string' ? fact.penerbit.split(' (')[0] : '';
-    const sourceIndexLine = canonical?.index.split('\n').find(line => line.startsWith('|') && line.includes(publisherKey));
-    const sourceUrls = canonicalSource.match(/https?:\/\/[^\s|]+/g) ?? [];
-    if (sourceUrls.length === 0 && sourceIndexLine) sourceUrls.push(...(sourceIndexLine.match(/https?:\/\/[^\s|]+/g) ?? []));
-    if (typeof fact.url === 'string' && !sourceUrls.includes(fact.url)) {
-      fail(file, 'url', `fakta ${fact.id} baris ${String(rowNumber)}: URL tidak cocok dengan sumber kanonis #${rowNumber}`, idx);
+    for (const field of ['nilai', 'satuan', 'penerbit', 'tahun', 'url']) {
+      if (fact[field] !== canonicalFact[field]) {
+        fail(file, field, `fakta ${fact.id} baris ${String(rowNumber)}: tidak cocok dengan record kanonis di src/data/fakta.json`, idx);
+      }
     }
   });
   validateFactReferences(data.fakta);

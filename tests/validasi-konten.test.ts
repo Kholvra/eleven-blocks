@@ -256,6 +256,26 @@ describe('validasi jadwal event REQ-015', () => {
 function run(directory: string, ...args: string[]) {
   return spawnSync(process.execPath, [validator, '--data-dir', directory, ...args], { encoding: 'utf8' });
 }
+function runWithoutMarkdownDocs() {
+  const root = dataDirectory();
+  const toolsDirectory = join(root, 'tools');
+  const data = join(root, 'src/data');
+  mkdirSync(toolsDirectory, { recursive: true });
+  mkdirSync(data, { recursive: true });
+  writeFileSync(join(toolsDirectory, 'validasi-konten.mjs'), readFileSync(validator, 'utf8'));
+  for (const filename of ['actions.json', 'cards.json', 'event-conditions.json', 'events.json', 'fakta.json', 'hud.json']) {
+    writeFileSync(join(data, filename), readFileSync(resolve('src/data', filename), 'utf8'));
+  }
+  return spawnSync(process.execPath, [join(toolsDirectory, 'validasi-konten.mjs')], { encoding: 'utf8' });
+}
+
+describe('validasi tanpa dokumen riset Markdown', () => {
+  it('memvalidasi konten runtime pada checkout yang tidak memiliki docs/', () => {
+    const result = runWithoutMarkdownDocs();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Validasi konten berhasil');
+  });
+});
 
 
 describe('validasi konten kartu REQ-014', () => {

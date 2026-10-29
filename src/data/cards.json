@@ -107,7 +107,7 @@
       "kategori": "tata-guna-lahan",
       "biaya": 16,
       "deskripsi": "Mendekatkan sekolah dan layanan pada rumah.",
-      "kenapa_penting": "Kawasan 15 Menit mendorong kebutuhan harian agar lebih mudah dijangkau dengan berjalan kaki.",
+      "kenapa_penting": "Layanan harian yang dekat memudahkan warga memenuhi kebutuhan dengan berjalan kaki.",
       "efek": {
         "langsung": { "udara": 2, "akses": 5, "hijau": 1, "warga": 2 },
         "tertunda": [
@@ -117,7 +117,7 @@
       },
       "kondisi": "Harga tanah bisa naik dan warga lama berisiko tergusur. Rusun terjangkau dan dialog dengan warga dapat mengurangi risiko itu.",
       "sumber": [
-        { "teks": "Kawasan 15 Menit mendorong kebutuhan harian agar lebih mudah dijangkau dengan berjalan kaki.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
+        { "teks": "Layanan harian yang dekat memudahkan warga memenuhi kebutuhan dengan berjalan kaki.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
       ]
     },
     {
