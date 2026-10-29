@@ -5,7 +5,7 @@
   "aksi": [
     {
       "id": "ACT01",
-      "nama": "Obrolan Terbuka Warga",
+      "nama": "Dialog Warga",
       "biaya": 3,
       "deskripsi": "Menandai 1 kartu berikutnya sebagai disepakati warga; efek samping sosial kartu itu nonaktif.",
       "kenapa_penting": "Mendengar warga sebelum kebijakan dijalankan membantu keputusan memperhitungkan kebutuhan dan risiko sosial.",

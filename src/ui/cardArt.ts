@@ -22,6 +22,7 @@ import streetFoodThumb from '../assets/3d/thumbs/streetFood.png';
 import canopyTreeThumb from '../assets/3d/thumbs/canopyTree.png';
 import roadBridgeThumb from '../assets/3d/thumbs/roadBridge.png';
 import carParkingThumb from '../assets/3d/thumbs/carParking.png';
+import schoolCrossingThumb from '../assets/3d/thumbs/schoolCrossing.png';
 import airIcon from '../assets/icons/cat-air.svg';
 import energyIcon from '../assets/icons/cat-energi.svg';
 import housingIcon from '../assets/icons/cat-permukiman.svg';
@@ -59,6 +60,7 @@ const modelImages: Record<string, string> = {
   canopyTree: canopyTreeThumb,
   roadBridge: roadBridgeThumb,
   carParking: carParkingThumb,
+  schoolCrossing: schoolCrossingThumb,
 };
 
 const categoryIcons: Record<string, string> = {

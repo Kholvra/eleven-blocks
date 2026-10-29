@@ -17,7 +17,7 @@
     "K02": "busStop",
     "K03": "trafficGate",
     "K04": "bus",
-    "K05": "schoolZone",
+    "K05": "schoolCrossing",
     "K06": "communityHouse",
     "K07": "canalBridge",
     "K08": "park",
@@ -30,7 +30,7 @@
     "K15": "streetFood",
     "K16": "market",
     "K17": "canopyTree",
-    "K18": "roadBridge",
+    "K18": "trafficGate",
     "K19": "carParking"
   },
   "modelByActionId": {

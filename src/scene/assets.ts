@@ -25,6 +25,7 @@ const modelUrls = {
   canopyTree: new URL('../assets/3d/canopy-tree.glb', import.meta.url).href,
   roadBridge: new URL('../assets/3d/road-bridge.glb', import.meta.url).href,
   carParking: new URL('../assets/3d/car-parking.glb', import.meta.url).href,
+  schoolCrossing: new URL('../assets/3d/school-crossing.glb', import.meta.url).href,
 };
 
 export async function loadBuildingModels(): Promise<ReadonlyMap<string, Object3D>> {

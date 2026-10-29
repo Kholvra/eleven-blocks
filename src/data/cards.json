@@ -95,7 +95,7 @@
           { "setelahRonde": 2, "efek": { "warga": 2 }, "catatan": "orang tua mulai izinkan anak jalan kaki" }
         ]
       },
-      "kondisi": "Pengemudi mengeluh lambat; butuh marka + konsistensi petugas.",
+      "kondisi": "Pengemudi bisa merasa perjalanan lebih lambat. Marka yang jelas dan petugas yang konsisten membantu menjaga keselamatan.",
       "sumber": [
         { "teks": "Zona selamat sekolah memberi perhatian khusus pada keselamatan anak dan pengguna jalan di sekitar sekolah.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
       ]
@@ -115,7 +115,7 @@
           { "setelahRonde": 3, "efek": { "hijau": -1 }, "catatan": "Kepadatan bikin genangan.", "syarat": "K07 dan K08 tidak ada" }
         ]
       },
-      "kondisi": "Harga tanah naik, warga lama berisiko tergusur; mitigasi: K14 + ACT01.",
+      "kondisi": "Harga tanah bisa naik dan warga lama berisiko tergusur. Rusun terjangkau dan dialog dengan warga dapat mengurangi risiko itu.",
       "sumber": [
         { "teks": "Kawasan 15 Menit mendorong kebutuhan harian agar lebih mudah dijangkau dengan berjalan kaki.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
       ]
@@ -173,7 +173,7 @@
           { "setelahRonde": 2, "efek": { "udara": 1, "hijau": 1 }, "catatan": "Memadamkan event ‘bau TPS’." }
         ]
       },
-      "kondisi": "Kalau dibangun tanpa penggerak warga, mangkrak (‘ah, nanti juga numpuk’).",
+      "kondisi": "Bank sampah perlu dikelola bersama warga. Tanpa warga yang ikut mengelola, sampah bisa kembali menumpuk.",
       "sumber": [
         { "teks": "KLHK mencatat 25.540 bank sampah pada 2023.", "url": "https://www.antaranews.com/berita/3586587/klhk-catat-25-ribu-bank-sampah-di-indonesia", "akses": "2026-10-17" }
       ]
@@ -192,7 +192,7 @@
           { "setelahRonde": 2, "efek": { "hijau": 1, "warga": 1 }, "catatan": "Memotong dampak event kemarau." }
         ]
       },
-      "kondisi": "Ada galian jalan sementara (akses −1 sekali); angka bocor mesti diawasi supaya tidak jadi legenda.",
+      "kondisi": "Penggalian jalan sementara menurunkan nilai Akses & Mobilitas 1 poin. Pantau kebocoran air dengan data yang jelas.",
       "sumber": [
         { "teks": "Banyak air bersih hilang sebelum sampai ke keran.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
       ]
@@ -230,7 +230,7 @@
           { "setelahRonde": 3, "efek": { "udara": 2, "hijau": 2 }, "catatan": "pohon makin rindang; bakau menahan rob" }
         ]
       },
-      "kondisi": "Butuh lahan besar; hasil lama kelihatan. Sabar itu bagian dari desain.",
+      "kondisi": "Pembangunan ini membutuhkan lahan luas. Manfaatnya baru terlihat dalam jangka panjang.",
       "sumber": [
         { "teks": "Akses ruang terbuka publik turun dari 48,0% menjadi 45,9% (UN SDG 11, 2020–2025).", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
       ]
@@ -269,7 +269,7 @@
           { "setelahRonde": 3, "efek": { "hijau": -1 }, "catatan": "Kondisi hijau memburuk.", "syarat": "K07 dan K08 tidak ada" }
         ]
       },
-      "kondisi": "Relokasi sensitif: tanpa ACT01 Dialog, warga −3 (warga merasa digusur). Sewa mesti terjangkau.",
+      "kondisi": "Tanpa dialog dengan warga, relokasi terasa seperti penggusuran dan nilai Kesejahteraan turun 3 poin. Sewa rusun juga perlu terjangkau.",
       "sumber": [
         { "teks": "Sekitar 1,16 miliar warga kota tinggal di kawasan kumuh (SDG 11.1.1).", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" },
         { "teks": "Ketersediaan hunian layak dan terjangkau tetap menjadi tantangan bagi warga kota.", "url": "https://sdgs.un.org/goals/goal11", "akses": "2026-10-17" }
@@ -354,7 +354,7 @@
     {
       "id": "K19",
       "idx": 19,
-      "nama": "Gedung Parkir & Dealer Mobil",
+      "nama": "Subsidi Cicilan Kendaraan Pribadi",
       "kategori": "ekonomi",
       "biaya": 10,
       "deskripsi": "Uang rakyat untuk menambah mobil pribadi = menjual jalanan kepada yang sudah punya kendaraan. Kalau mau ada subsidi, subsidi angkutan umum.",
@@ -365,7 +365,7 @@
           { "setelahRonde": 4, "efek": { "udara": -4, "akses": -3 }, "catatan": "kepemilikan kendaraan melonjak; ruang jalan tidak tumbuh" }
         ]
       },
-      "kondisi": "Populer di dealer & keluarga muda; parkir liar di mana-mana (flavor di Laporan Kota).",
+      "kondisi": "Dalam simulasi, subsidi cicilan menambah jumlah kendaraan sementara ruang jalan tidak bertambah.",
       "sumber": [
         { "teks": "WRI: konteks induced demand ketika kapasitas jalan berubah; bukan bukti dampak subsidi kendaraan.", "url": "https://smartgrowthamerica.org/induced-demand-calculator/", "akses": "2026-10-17" }
       ]
